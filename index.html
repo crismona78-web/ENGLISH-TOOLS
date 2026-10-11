@@ -1,0 +1,1580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}*{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Word Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700&display=swap">
+<style>
+/* Layout: one centred column. Home = mode switch + unit grid. Game = two columns of tiles (English | Español) under a sticky score bar. */
+:root{
+  --bg:#E9E7FF; --surface:#FFFFFF; --ink:#17143A; --muted:#5B5887; --line:#17143A;
+  --accent:#5B3DF5; --accent-ink:#FFFFFF; --es:#FFE35C; --es-ink:#17143A;
+  --good:#12A66A; --bad:#F2415F; --pastel-ink:#17143A;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14112E; --surface:#25214F; --ink:#F2F0FF; --muted:#A9A5D6; --line:#080618;
+    --accent:#8B73FF; --accent-ink:#0F0B2E; --es:#F5D547; --es-ink:#17143A;
+    --good:#2BD08C; --bad:#FF6B86; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14112E; --surface:#25214F; --ink:#F2F0FF; --muted:#A9A5D6; --line:#080618;
+  --accent:#8B73FF; --accent-ink:#0F0B2E; --es:#F5D547; --es-ink:#17143A;
+  --good:#2BD08C; --bad:#FF6B86; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:760px;margin-inline:auto}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+h1,h2{font-family:var(--display);font-weight:800;text-wrap:balance;margin:0;letter-spacing:-.02em}
+
+/* Home */
+.hero{display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px}
+.hero h1{font-size:clamp(2.6rem,9vw,4.2rem);line-height:.95}
+.hero p{margin:10px 0 0;color:var(--muted);font-weight:600;max-width:34ch}
+.demo{position:relative;width:190px;height:96px;flex:none}
+.demo .tile{position:absolute;width:140px;cursor:default;pointer-events:none}
+.demo .a{left:0;top:0;transform:rotate(-5deg)}
+.demo .b{right:0;bottom:0;transform:rotate(4deg)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;background:var(--surface);border:2.5px solid var(--line);border-radius:18px;box-shadow:0 4px 0 var(--line);margin-bottom:18px}
+.seg button{border:0;background:transparent;border-radius:12px;padding:12px 10px;font-weight:700;font-size:1rem;display:flex;flex-direction:column;align-items:center;gap:2px}
+.seg button small{font-weight:600;color:var(--muted);font-size:.78rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button[aria-pressed="true"] small{color:inherit;opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.unit{position:relative;text-align:left;background:hsl(var(--h) 90% 76%);color:var(--pastel-ink);border:2.5px solid var(--line);border-radius:16px;box-shadow:0 4px 0 var(--line);padding:12px 14px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .12s,box-shadow .12s,opacity .15s}
+.unit:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}
+.unit .num{font:800 .8rem var(--display);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.unit .name{font:700 1.08rem/1.15 var(--display)}
+.unit .count{font-size:.82rem;font-weight:600;opacity:.8;font-variant-numeric:tabular-nums}
+.unit .tick{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:none;place-items:center;font-weight:800;font-size:.85rem;color:var(--ink)}
+.mixmode .unit .tick{display:grid}
+.mixmode .unit[aria-pressed="true"] .tick{background:var(--ink);color:var(--surface)}
+.mixmode .unit[aria-pressed="false"]{opacity:.45;box-shadow:0 2px 0 var(--line)}
+.mixbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.mixbar .spacer{flex:1}
+.btn{border:2.5px solid var(--line);border-radius:14px;background:var(--surface);padding:11px 16px;font-weight:700;box-shadow:0 4px 0 var(--line);transition:transform .1s,box-shadow .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{border:0;background:none;font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:8px 4px;color:var(--ink)}
+
+/* Game */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 12px;margin-bottom:6px}
+.barrow{display:flex;align-items:center;gap:10px}
+.barrow .title{font:800 1.05rem var(--display);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.stat{font-weight:700;font-variant-numeric:tabular-nums;background:var(--surface);border:2.5px solid var(--line);border-radius:12px;padding:5px 10px;font-size:.92rem;white-space:nowrap}
+.stat.bad b{color:var(--bad)}
+.progress{height:14px;border:2.5px solid var(--line);border-radius:99px;background:var(--surface);margin-top:10px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--good);border-radius:99px;transition:width .3s ease}
+.hint{color:var(--muted);font-weight:600;font-size:.88rem;margin:8px 2px 12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.colhead{font:800 .78rem var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-inline:4px}
+.tile{font:600 15px/1.2 var(--body);text-align:left;min-height:50px;padding:11px 12px;border:2.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 4px 0 var(--line);overflow-wrap:anywhere;hyphens:auto;display:flex;align-items:center;transition:transform .12s,box-shadow .12s,background .12s}
+.tile.es{background:var(--es);color:var(--es-ink)}
+@media (hover:hover){.tile:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}}
+.tile.sel{background:var(--accent);color:var(--accent-ink);transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.tile.wrong{background:var(--bad);color:#fff;animation:shake .4s}
+.tile.ok{background:var(--good);color:#fff}
+.tile.gone{pointer-events:none;animation:pop .3s ease forwards}
+@keyframes shake{0%,100%{translate:0}20%{translate:-6px}40%{translate:6px}60%{translate:-4px}80%{translate:3px}}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.07)}100%{transform:scale(.5);opacity:0}}
+
+/* End */
+.end{text-align:center;padding-top:24px}
+.end h2{font-size:clamp(2.2rem,8vw,3.6rem);line-height:1}
+.end p{color:var(--muted);font-weight:600;margin:10px 0 22px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.stats div{background:var(--surface);border:2.5px solid var(--line);border-radius:16px;box-shadow:0 4px 0 var(--line);padding:14px 6px}
+.stats b{display:block;font:800 1.9rem var(--display);font-variant-numeric:tabular-nums}
+.stats span{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:20}
+.confetti i{position:absolute;top:-16px;width:10px;height:16px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+/* Tabs + exam skill cards */
+.tabs{display:flex;gap:22px;margin-bottom:18px;border-bottom:3px solid var(--line)}
+.tabs button{border:0;background:none;font:800 1.15rem var(--display);color:var(--muted);padding:8px 2px 10px;margin-bottom:-3px;border-bottom:6px solid transparent;letter-spacing:-.01em}
+.tabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.skill{background:hsl(var(--h) 90% 76%);color:var(--pastel-ink);border:2.5px solid var(--line);border-radius:18px;box-shadow:0 4px 0 var(--line);padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.skill h3{font:800 1.35rem/1.1 var(--display);margin:0;letter-spacing:-.02em}
+.skill p{margin:0;font-size:.92rem;font-weight:600;opacity:.85}
+.skill .count{font-size:.8rem;font-weight:700;opacity:.75}
+.skill .modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:8px}
+.mini{border:2.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:8px 12px;font-weight:700;font-size:.92rem;box-shadow:0 3px 0 var(--line);transition:transform .1s,box-shadow .1s}
+.mini:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+
+/* Gap Rush */
+#rFill{background:var(--accent);transition:width .2s linear}
+#rFill.low{background:var(--bad)}
+.q{background:var(--surface);border:2.5px solid var(--line);border-radius:20px;box-shadow:0 5px 0 var(--line);padding:22px 18px;margin-bottom:16px;min-height:116px;display:flex;align-items:center}
+.q p{margin:0;font:700 clamp(1.15rem,4.6vw,1.55rem)/1.45 var(--display);overflow-wrap:anywhere}
+.gap{display:inline-block;min-width:3.4em;margin-inline:.15em;border-bottom:4px solid var(--accent);color:var(--accent);text-align:center;padding-inline:.15em}
+.gap.good{color:var(--good);border-color:var(--good)}
+.gap.bad{color:var(--bad);border-color:var(--bad)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{font:700 1.02rem/1.2 var(--body);text-align:center;min-height:62px;padding:12px 10px;border:2.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 4px 0 var(--line);overflow-wrap:anywhere;display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,background .12s}
+@media (hover:hover){.opt:not([disabled]):hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}}
+.opt[disabled]{cursor:default}
+.opt.ok{background:var(--good);color:#fff}
+.opt.wrong{background:var(--bad);color:#fff;animation:shake .4s}
+.opt.dim{opacity:.5}
+.fb{min-height:3em;margin:14px 2px 0;font-weight:600;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.fb b{color:var(--ink)}
+@media (max-width:420px){
+  .tile{font-size:14px;padding:10px 9px}
+  .cols{gap:8px}
+  .stat{padding:4px 8px;font-size:.84rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <section id="home">
+    <div class="hero">
+      <div>
+        <h1>Word Match</h1>
+        <p>Pair every English word with its Spanish translation. 25 pairs per round.</p>
+      </div>
+      <div class="demo" aria-hidden="true">
+        <div class="tile a">gut feeling</div>
+        <div class="tile es b">intuición</div>
+      </div>
+    </div>
+
+    <div class="tabs" role="group" aria-label="Section">
+      <button id="tabUnits" aria-pressed="true">Vocabulary units</button>
+      <button id="tabSkills" aria-pressed="false">Exam skills</button>
+    </div>
+
+    <div id="pUnits">
+    <div class="seg" role="group" aria-label="Game mode">
+      <button id="modeOne" aria-pressed="true">One unit<small>Tap a unit to start</small></button>
+      <button id="modeMix" aria-pressed="false">Mix units<small>Choose which ones to blend</small></button>
+    </div>
+
+    <div id="units" class="grid"></div>
+
+    <div id="mixbar" class="mixbar" hidden>
+      <button class="link" id="allBtn">Select all</button>
+      <button class="link" id="noneBtn">Clear</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="startMix">Start mix</button>
+    </div>
+    </div>
+
+    <div id="pSkills" hidden>
+      <div class="skills" id="skills"></div>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="bar">
+      <div class="barrow">
+        <button class="btn" id="backBtn" aria-label="Back to units" style="padding:6px 12px">&larr;</button>
+        <div class="title" id="gTitle"></div>
+        <div class="stat" id="gTime">0:00</div>
+        <div class="stat bad" id="gMiss">Misses <b>0</b></div>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="25" aria-valuenow="0" id="gProg"><i id="gFill"></i></div>
+    </div>
+    <p class="hint"><span id="gLeft">25</span> pairs left. Tap a word, then its translation. Either column first.</p>
+    <div class="cols">
+      <div class="col" id="colEn"><div class="colhead">English</div></div>
+      <div class="col" id="colEs"><div class="colhead">Español</div></div>
+    </div>
+  </section>
+
+  <section id="rush" hidden>
+    <div class="bar">
+      <div class="barrow">
+        <button class="btn" id="rBack" aria-label="Back to menu" style="padding:6px 12px">&larr;</button>
+        <div class="title" id="rTitle"></div>
+        <div class="stat" id="rTime">1:30</div>
+        <div class="stat" id="rScore">0 pts</div>
+      </div>
+      <div class="progress"><i id="rFill" style="width:100%"></i></div>
+    </div>
+    <p class="hint" id="rHint"></p>
+    <div class="q"><p id="rQ"></p></div>
+    <div class="opts" id="rOpts"></div>
+    <p class="fb" id="rFb" aria-live="polite"></p>
+  </section>
+
+  <section id="end" class="end" hidden>
+    <h2 id="eTitle"></h2>
+    <p id="eSub"></p>
+    <div class="stats" id="eStats"></div>
+    <div class="actions">
+      <button class="btn primary" id="againBtn">Next 25</button>
+      <button class="btn" id="changeBtn">Change units</button>
+    </div>
+  </section>
+
+</div>
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script>
+/* Word lists from WORDLIST LLIBRE B2.2 (format: English|Español). Three obvious typos fixed. */
+var RAW = [
+{n:1,t:"Personality & Work-Life",h:265,d:`foolproof|infalible
+geek|friki
+good-natured rivalry|sana rivalidad
+gut feeling|intuición
+job-seeker|solicitante de empleo
+light-hearted response|respuesta desenfadada
+the point of|la cuestión
+work–life balance|equilibrio entre la vida personal y laboral
+absent-minded|distraído
+bad-tempered|de mal humor
+big-headed|engreído
+easy-going|de trato fácil
+good-tempered|sereno
+laid-back|despreocupado
+narrow-minded|estrecho de miras
+open-minded|abierto de mente
+self-centred|egocéntrico
+strong-willed|de fuerte carácter
+tight-fisted|agarrado
+two-faced|falso
+well-balanced|equilibrado
+well-behaved|bien educados`},
+{n:2,t:"Health & Clothes",h:340,d:`allergic reaction|reacción alérgica
+be sick|ponerse enfermo
+bleed|sangrar
+blister|ampolla
+(high/low) blood pressure|presión arterial (alta/baja)
+burn|quemar
+choke|atragantarse
+cold|resfriado
+come round|volver en sí
+cough|tos / toser
+cut|cortarse
+diarrhoea|diarrea
+dizzy|mareado
+earache|dolor de oído
+faint|desmayarse
+feel sick|sentirse enfermo
+flu|gripe
+food poisoning|intoxicación alimentaria
+get over|curarse (de)
+headache|dolor de cabeza
+hurt|dolor / doler
+lie down|echarse
+pass out|desmayarse
+rash|sarpullido
+sore throat|dolor de garganta
+sprain|torcer(se)
+stomach ache|dolor de estómago
+sunburn|quemarse por el sol
+swell|dar de sí / hincharse
+temperature|fiebre
+throw up|vomitar
+toothache|dolor de muelas
+unconscious|inconsciente
+vomit|vomitar
+casual|informal
+checked|de cuadros
+classic|clásico
+cotton vest|camiseta de algodón
+denim waistcoat|chaleco vaquero
+dress up|arreglarse
+fit|quedar bien (algo)
+fur collar|estola de piel
+get changed|cambiarse
+get dressed|vestirse
+get undressed|quitar(se) la ropa
+go with|pegar (con)
+hang up|colgar
+hooded|con capucha
+lace top|top de encaje
+leather sandals|sandalias de cuero
+linen suit|traje de lino
+long-sleeved|de manga larga
+loose|holgado
+lycra swimsuit|bañador de lycra
+match|a juego
+old-fashioned|anticuado
+patterned|estampado
+plain|liso / sencillo
+scruffy|desaliñado
+silk scarf|pañuelo de seda
+sleeveless|sin mangas
+smart|elegante
+spotted|de lunares
+striped|de rayas
+suede boots|botas de ante
+suit|quedar bien (algo)
+tight|apretado
+velvet bow tie|pajarita de terciopelo
+V-neck|cuello de pico
+woollen cardigan|rebeca de lana`},
+{n:3,t:"Airports & Adverbs",h:25,d:`airport terminal|terminal de aeropuerto
+aisle|pasillo
+baggage drop|mostrador de equipajes
+baggage reclaim|recogida de equipajes
+board|embarcar
+boarding pass|tarjeta de embarque
+business class|business
+cabin crew|personal de cabina
+check|inspeccionar
+check in|facturar
+check-in desk|mostrador de facturación
+closed|cerrado
+collect|recoger
+connecting flight|vuelo de enlace
+customs|aduana
+delayed|retrasado
+departures board|panel de salidas
+direct flight|vuelo directo
+drop off|llevar (a alguien)
+first class|primera clase
+flight time|hora del vuelo
+fill in|rellenar
+gate|puerta
+get off|bajar(se) (de algo)
+get on|subir(se) (a algo)
+hand luggage|equipaje de mano
+illegal goods|productos ilegales
+jet lag|desfase horario
+journey|viaje
+land|aterrizar
+liquid|líquido
+long-haul flight|vuelo de larga distancia
+lounge|sala (de compañía aérea)
+luggage|equipaje
+on time|puntual
+pick up|recoger
+row|fila
+runway|pista
+scan|pasar por el escáner
+seat belt|cinturón de seguridad
+security|seguridad
+sharp object|objeto punzante
+take off|despegar
+travel|viajar
+trip|viaje
+trolley|carrito
+turbulence|turbulencia
+actually|en realidad
+apparently|al parecer
+at the end|al final
+at the moment|en estos momentos
+basically|sencillamente
+certainly|desde luego
+especially|especialmente
+even|incluso
+eventually|al final
+ever|alguna vez
+gradually|poco a poco
+hard|duro / duramente
+hardly|apenas
+ideally|lo ideal
+in fact|en realidad
+in the end|al final
+late|tarde
+lately|últimamente
+near|cerca
+nearly|casi
+obviously|obviamente
+specially|expresamente
+still|todavía
+yet|ya / todavía`},
+{n:4,t:"Weather & Take",h:195,d:`below zero|bajo cero
+blizzard|ventisca
+boiling|hacer un calor sofocante
+breeze|brisa
+bright|brillante
+changeable|variable
+chilly|fresco
+clear|despejado
+cool|fresco
+damp|húmedo
+drizzle|lloviznar
+drought|sequía
+flood|inundación
+fog|niebla
+freezing|hacer mucho frío
+hail|granizo
+heatwave|ola de calor
+heavy|intenso
+humid|húmedo
+hurricane|huracán
+icy|helado
+lightning|relámpago
+mild|templado
+mist|neblina
+monsoon|monzón
+pour (with rain)|llover a mares
+settled|estable
+shower|tormenta / chaparrón
+smog|contaminación
+strong|fuerte
+sunny|soleado
+thick|densa
+thunder|trueno
+warm|caluroso / templado
+take advantage of|aprovechar
+take after|parecerse (a alguien)
+take against|estar enfadado / tomar manía
+take care of|encargarse de / cuidar
+take into account|tener en cuenta
+take no notice of|no hacer caso de
+take off|despegar
+take (sth) off|quitarse (algo)
+take (sth) out|llevar (a alguien) / sacar (fuera)
+take part in|participar en
+take pity on|apiadarse de
+take place|tener lugar
+take risks|tomar riesgos
+take (your) time|tomarse el tiempo necesario
+take to|encariñarse con
+take up|empezar a hacer algo`},
+{n:5,t:"Feelings",h:12,d:`astonished|asombrado
+bewildered|perplejo
+delighted|encantado
+desperate|desesperado
+devastated|devastado
+disappointed|decepcionado
+down|decaído
+fed up|harto
+gobsmacked|atónito
+grateful|agradecido
+gutted|quedarse hecho polvo
+homesick|tener nostalgia
+horrified|horrorizado
+lonely|solo
+miserable|abatido
+offended|ofendido
+overwhelmed|abrumado
+proud|orgulloso
+relieved|aliviado
+scared stiff|muerto de miedo
+shattered|hecho añicos
+sick of|harto de
+stunned|aturdido
+thrilled|entusiasmado
+upset|disgustado
+amaze|asombrar
+confuse|confundir
+disappoint|decepcionar
+embarrass|avergonzar
+exhaust|agotado
+frustrate|frustrar
+infuriate|enfurecer
+inspire|inspirar
+terrify|aterrorizar
+thrill|hacer (mucha) ilusión`},
+{n:6,t:"Music, Sleep & Loanwords",h:300,d:`be a light sleeper|tener un sueño ligero
+chorus|estribillo
+concerto|concierto
+conductor|director
+croissant|croissant
+drum|tambor
+encore|bis
+fiancé|prometido
+flute|flauta
+genre|género
+graffiti|grafiti
+hypochondriac|hipocondríaco
+keyboard|teclado
+macchiato|macchiato
+mezzo-soprano|mezzo-soprano
+microphone|micrófono
+orchestra|orquesta
+paparazzi|paparazzi
+philosophy|filosofía
+psychologist|psicólogo
+rhythm|ritmo
+saxophone|saxofón
+soprano|soprano
+symphony|sinfonía
+villa|chalet
+violin|violín
+choir|coro
+chic|elegante
+psychic|adivino
+chauffeur|chófer
+chef|chef
+be fast asleep|dormirse rápido
+blanket|manta
+duvet|edredón
+fall asleep|dormirse
+insomnia|insomnio
+keep you awake|impedir dormir
+nap|siesta
+oversleep|quedarse dormido
+pillow|almohada
+set the alarm|poner la alarma
+sheet|sábana
+have nightmares|tener pesadillas
+sleep like a log|dormir como un tronco
+sleeping pill|pastilla para dormir
+cappuccino|capuchino
+bouquet|ramo
+cello|violonchelo
+barista|barista
+ballet|ballet
+bass guitar|bajo
+yawn|bostezar
+snore|roncar
+sleepy|tener sueño
+sleepwalk|ser sonámbulo
+architecture|arquitectura`},
+{n:7,t:"Body & Verbs",h:150,d:`lips|labio
+liver|hígado
+kneel|arrodillarse
+knee|rodilla
+kidneys|riñón
+hug|abrazar
+hold someone's hand|coger a alguien de la mano
+hip|cadera
+fist|puño
+heart|corazón
+frown|fruncir el ceño
+forehead|frente
+fold your arms|cruzarse de brazos
+eyelid|párpado
+eyelash|pestaña
+lungs|pulmón
+eyebrow|ceja
+heel|tacón
+nails|uñas
+touch your toes|tocarse los dedos de los pies
+palm|palma
+eye|ojo
+yawn|bostezar
+wrist|muñeca
+wrinkles|arruga
+wink|guiñar el ojo
+wave|saludar
+waist|cintura
+thigh|muslo
+neck|cuello
+suck your thumb|chuparse el dedo
+stretch|estirar(se)
+stare|mirar fijamente
+shrug your shoulders|encogerse de hombros
+shake your head|negar con la cabeza
+shake hands|darse la mano
+scratch|rascar
+raise your eyebrows|levantar las cejas
+point|señalar
+stubble|vello
+elbow|codo
+wish|ojalá
+chin|barbilla
+raise|subir
+prevent|impedir
+notice|darse cuenta
+mind|importar
+matter|importar
+lie (past lay)|tumbarse
+lend|prestar
+lay (past laid)|poner (la mesa...)
+hope|esperar
+expect|esperar
+discuss|hablar (de algo)
+comb your hair|peinarse
+borrow|pedir prestado
+beat|derrotar
+avoid|evitar
+argue|argumentar
+advise|aconsejar
+realize|darse cuenta (de)
+refuse|negarse
+deny|negar
+remind|recordar (algo a alguien)
+remember|acordarse (de)
+chew|masticar
+chest|pecho
+calf|pantorrilla
+brush your teeth|lavarse los dientes
+brush your hair|cepillarse el pelo
+brain|cerebro
+bottom|trasero
+blow your nose|sonarse la nariz
+cheek|mejilla
+ankle|tobillo
+win|ganar
+warn|advertir
+wait|esperar
+steal|robar
+rob|robar
+bite your nails|morderse las uñas
+rise|subir`},
+{n:8,t:"Media & Crime",h:45,d:`critic|crítico
+clash|discutir
+censored|censurado
+bid|intentar
+biased|parcial
+back|respaldar
+accurate|preciso
+agony aunt|columnista de consultorio sentimental
+witness|testigo
+verdict|veredicto
+editor|editor
+vandalism|vandalismo
+axe|perder (empleos)
+freelance journalist|periodista freelance
+row|discutir
+newsreader|presentador de noticias
+objective|objetivo
+paparazzi|paparazzi
+presenter|presentador
+quit|dimitir (de)
+quiz|interrogar
+reporter|reportero
+sensational|sensacionalista
+split|separarse
+tip|predecir
+vow|prometer
+wed|casarse (con)
+theft|robo
+hit|afectar
+terrorism|terrorismo
+commentator|comentarista
+smuggling|contrabando
+stalking|acoso
+accuse|acusar
+acquit|absolver
+arrest|detener
+bribery|sobornar
+burglary|robo (de una casa)
+catch|atrapar
+charge|acusar
+commit|cometer
+court|tribunal
+drug dealing|tráfico de drogas
+evidence|prueba
+fraud|fraude
+guilty|culpable
+hacking|hackeo
+blackmail|chantajear
+innocent|inocente
+hijacking|secuestrar
+robbery|robo
+rape|violación
+punishment|castigo
+proof|prueba
+murder|asesinato
+question|interrogar
+kidnapping|secuestro
+jury|jurado
+judge|juez
+investigate|investigar
+mugging|asalto
+sentence|sentencia`},
+{n:9,t:"Business & Word Building",h:95,d:`ignorance|ignorancia
+expectation|expectativa
+hunger|hambre
+hopeless|desesperado
+homeless|sin techo
+height|altura
+improvement|mejora
+heat|calor
+government|gobierno
+friendliness|amabilidad
+connection|relación
+employment|trabajo
+distance|distancia
+development|desarrollo
+death|muerte
+convenience|comodidad
+coldness|frío
+childhood|infancia
+careful|tener cuidado
+bulletproof|a prueba de balas
+intention|intención
+brotherhood|fraternidad
+entertainment|entretenimiento
+loneliness|soledad
+success|éxito
+megacity|megaciudad
+width|ancho
+weakness|punto débil
+waterproof|impermeable
+violence|violencia
+vandalism|vandalismo
+useful|útil
+undrinkable|imbebible
+underdeveloped|subdesarrollado
+unbreakable|irrompible
+ugliness|fealdad
+thought|opinión
+loss|pérdida
+bilingual|bilingüe
+strength|fuerza
+silence|silencio
+racism|racismo
+postgraduate|posgrado
+pollution|contaminación
+overcrowded|superpoblado
+neighbourhood|barrio
+multicultural|multicultural
+monorail|monorraíl
+modernism|modernismo
+misunderstood|entender mal
+subway|metro
+belief|creencia
+excitement|emoción
+antisocial|antisocial
+expand|expandir(se)
+drop|disminuir
+do well|hacer (algo) bien
+do market research|hacer un estudio de mercado
+do business|hacer negocios
+do badly|ir mal
+do a job|hacer un trabajo
+do a deal|hacer un trato
+close down|cerrar
+chain|cadena
+branch|sucursal
+become the market leader|convertirse en el líder del mercado
+any other business|algún otro tema
+sue|demandar
+slogan|eslogan
+publicity|publicidad
+misleading|engañoso
+consumers|consumidor
+claims|afirmar
+brand|marca
+advertisements|anuncios
+advertising campaign|campaña de publicidad
+autopilot|piloto automático
+export|exportar
+flop|fracaso
+boom|explosión
+go out of business|quebrar (negocio)
+alcoholism|alcoholismo
+get down to business|ponerse a trabajar
+accommodation|alojamiento
+abundance|abundancia
+absence|ausencia
+unfinished business|asunto pendiente
+take over|absorber
+recession|recesión
+produce|producir
+none of your business|no es asunto tuyo
+mix business with pleasure|mezclar negocios y placer
+mind your own business|meterse en sus asuntos
+set up|fundar(se)
+merge|fusionar(se)
+head office|sede central
+import|importar
+launch|lanzamiento
+grow|crecer
+make a loss|tener pérdidas
+make a decision|tomar una decisión
+make money|ganar dinero
+make (sb) redundant|despedir (a alguien) por exceso de personal
+manufacture|fabricar
+mean business|actuar en serio
+make a profit|tener beneficios`},
+{n:10,t:"Science & Pairs",h:175,d:`health and safety|salud y seguridad
+forgive and forget|perdonar y olvidar
+dead or alive|vivo o muerto
+cause and effect|causa y efecto
+by and large|en general
+zoology|zoología
+backwards and forwards|de un lado a otro
+all or nothing|todo o nada
+zoological|zoológico
+zoologist|zoólogo
+law and order|ley y orden
+bits and pieces|cosita
+live and learn|todos los días se aprende algo
+sooner or later|tarde o temprano
+now and again|de vez en cuando
+now or never|ahora o nunca
+once or twice|una o dos veces
+peace and quiet|paz y tranquilidad
+pros and cons|pros y contras
+rain or shine|llueva o truene
+right or wrong|para bien o para mal
+safe and sound|sano y salvo
+short and sweet|bueno y breve
+sick and tired|harto
+supply and demand|oferta y demanda
+thunder and lightning|rayos y truenos
+theory|teoría
+more or less|más o menos
+test|examen
+biological|biológico
+scientist|científico
+touch and go|nunca se sabe
+astronomer|astrónomo
+astronomical|astronómico
+astronomy|astronomía
+biologist|biólogo
+biology|biología
+botanical|botánico
+botanist|botánico
+botany|botánica
+chemical|químico
+chemist|químico
+chemistry|química
+clone|clon
+discovery|descubrimiento
+drugs|medicamento
+experiment|experimento
+genetic|genético
+geneticist|genetista
+genetics|genética
+guinea pig|cobaya
+laboratory|laboratorio
+physical|físico
+physicist|físico
+physics|física
+research|investigación
+science|ciencia
+scientific|científico
+side effect|efecto secundario
+wait and see|espera y verás`}
+];
+
+/* Extra words on the same topics. They only appear once the official words of a unit have all been played. */
+var EXTRA = {
+1:`reliable|fiable
+stubborn|terco
+shy|tímido
+bossy|mandón
+cheerful|alegre
+moody|de humor cambiante
+sensible|sensato
+ambitious|ambicioso
+generous|generoso
+mean|tacaño
+outgoing|extrovertido
+hard-working|trabajador
+lazy|vago
+polite|educado
+rude|maleducado
+trustworthy|digno de confianza
+level-headed|con la cabeza fría
+sense of humour|sentido del humor
+get on well with|llevarse bien con
+fall out with|enemistarse con
+look up to|admirar
+deadline|fecha límite
+overtime|horas extra
+salary|sueldo
+colleague|compañero de trabajo
+flexible working hours|horario flexible
+burnout|agotamiento laboral
+promotion|ascenso
+work from home|trabajar desde casa`,
+2:`ambulance|ambulancia
+bruise|moratón
+painkiller|analgésico
+infection|infección
+cast|escayola
+stitches|puntos de sutura
+hoodie|sudadera con capucha
+belt|cinturón
+sweater|jersey
+ripped|rasgado
+baggy|ancho`,
+3:`passport control|control de pasaportes
+overbooked|con exceso de reservas
+stopover|escala
+window seat|asiento de ventanilla
+visa|visado
+luggage allowance|franquicia de equipaje
+meanwhile|mientras tanto
+otherwise|de lo contrario
+nevertheless|sin embargo`,
+5:`anxious|ansioso
+jealous|celoso
+embarrassed|avergonzado
+nervous|nervioso
+furious|furioso
+irritated|irritado
+content|contento
+reluctant|reacio
+ashamed|apenado
+overjoyed|rebosante de alegría
+heartbroken|con el corazón roto
+on edge|con los nervios de punta
+over the moon|en la gloria
+pleased|complacido
+stressed out|estresado
+mixed feelings|sentimientos encontrados
+cheer up|animarse
+calm down|calmarse`,
+6:`trumpet|trompeta
+guitarist|guitarrista
+lullaby|nana
+snooze|echar una cabezada
+doze off|quedarse medio dormido
+wide awake|completamente despierto`,
+7:`shoulder|hombro
+thumb|pulgar
+index finger|dedo índice
+spine|columna vertebral
+skull|cráneo
+jaw|mandíbula
+tongue|lengua
+throat|garganta
+stomach|estómago
+muscle|músculo
+bone|hueso
+skin|piel
+blush|sonrojarse
+nod|asentir con la cabeza
+tiptoe|andar de puntillas
+crawl|gatear
+bend down|agacharse
+rub|frotar
+giggle|reírse tontamente
+sigh|suspirar`,
+8:`headline|titular
+broadcast|retransmitir
+press|prensa
+tabloid|periódico sensacionalista
+gossip|cotilleo
+fake news|noticias falsas
+subscribe|suscribirse
+censorship|censura
+shoplifting|hurto en tiendas
+fine|multa
+prison|prisión
+victim|víctima
+suspect|sospechoso
+trial|juicio
+lawyer|abogado
+break the law|infringir la ley
+get away with|salirse con la suya
+plead guilty|declararse culpable`,
+9:`turnover|facturación
+shareholder|accionista
+CEO|director ejecutivo
+start-up|empresa emergente
+customer|cliente
+supplier|proveedor
+retail|venta al por menor
+wholesale|venta al por mayor
+invest|invertir
+budget|presupuesto
+competitor|competidor
+market share|cuota de mercado
+bankrupt|en quiebra
+negotiate|negociar
+target audience|público objetivo
+workforce|plantilla
+sales figures|cifras de ventas
+bargain|ganga
+cut costs|reducir costes
+sustainable|sostenible
+happiness|felicidad
+sadness|tristeza
+freedom|libertad
+friendship|amistad`,
+10:`trial and error|ensayo y error
+give and take|ceder un poco cada uno
+odds and ends|cosas sueltas
+ups and downs|altibajos
+black and white|blanco y negro
+hit and miss|con resultados irregulares
+spick and span|limpio y ordenado
+hypothesis|hipótesis
+microscope|microscopio
+gravity|gravedad
+molecule|molécula
+breakthrough|avance importante
+vaccine|vacuna
+fossil|fósil
+renewable energy|energía renovable
+climate change|cambio climático
+cure|cura`
+};
+
+var ROUND = 25;
+function parse(txt, extra){
+  return (txt || "").trim().split("\n").filter(Boolean).map(function(l){
+    var i = l.indexOf("|");
+    return {en:l.slice(0,i).trim(), es:l.slice(i+1).trim(), x:extra};
+  });
+}
+var UNITS = RAW.map(function(u){
+  var seen = {};
+  function ok(w){
+    var k = w.en.toLowerCase();
+    if (k === w.es.toLowerCase() || seen[k]) return false;
+    seen[k] = 1; return true;
+  }
+  var main = parse(u.d, false).filter(ok);
+  var extra = parse(EXTRA[u.n], true).filter(ok);
+  return {n:u.n, t:u.t, h:u.h, main:main, extra:extra, words:main.concat(extra)};
+});
+
+var $ = function(s){ return document.querySelector(s); };
+var screens = {home:$("#home"), game:$("#game"), rush:$("#rush"), end:$("#end")};
+function show(name){
+  for (var k in screens) screens[k].hidden = (k !== name);
+  window.scrollTo(0,0);
+}
+function shuffle(a){
+  a = a.slice();
+  for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+function fmt(s){ var m=Math.floor(s/60), r=s%60; return m+":"+(r<10?"0":"")+r; }
+
+/* ---------- Home ---------- */
+var mode = "one";
+var picked = {};
+UNITS.forEach(function(u){ picked[u.n] = true; });
+
+var unitsEl = $("#units");
+UNITS.forEach(function(u){
+  var b = document.createElement("button");
+  b.className = "unit";
+  b.style.setProperty("--h", u.h);
+  b.dataset.n = u.n;
+  b.innerHTML = '<span class="tick" aria-hidden="true">&#10003;</span><span class="num">Unit '+u.n+'</span><span class="name">'+u.t.replace(/&/g,"&amp;")+'</span><span class="count">'+u.main.length+' words'+(u.extra.length ? ' + '+u.extra.length+' extra' : '')+'</span>';
+  b.addEventListener("click", function(){
+    if (mode === "one") { start([u]); }
+    else { picked[u.n] = !picked[u.n]; renderHome(); }
+  });
+  unitsEl.appendChild(b);
+});
+
+function renderHome(){
+  var one = mode === "one";
+  $("#modeOne").setAttribute("aria-pressed", one);
+  $("#modeMix").setAttribute("aria-pressed", !one);
+  $("#home").classList.toggle("mixmode", !one);
+  $("#mixbar").hidden = one;
+  var total = 0;
+  Array.prototype.forEach.call(unitsEl.children, function(b){
+    var n = +b.dataset.n;
+    if (one) b.removeAttribute("aria-pressed");
+    else b.setAttribute("aria-pressed", !!picked[n]);
+    if (picked[n]) total += UNITS[n-1].words.length;
+  });
+  var cnt = UNITS.filter(function(u){ return picked[u.n]; }).length;
+  var sm = $("#startMix");
+  sm.disabled = cnt === 0;
+  sm.textContent = cnt === 0 ? "Pick at least one unit" : "Start mix · " + cnt + (cnt===1?" unit":" units") + " · " + total + " words";
+}
+$("#modeOne").addEventListener("click", function(){ mode="one"; renderHome(); });
+$("#modeMix").addEventListener("click", function(){ mode="mix"; renderHome(); });
+$("#allBtn").addEventListener("click", function(){ UNITS.forEach(function(u){ picked[u.n]=true; }); renderHome(); });
+$("#noneBtn").addEventListener("click", function(){ UNITS.forEach(function(u){ picked[u.n]=false; }); renderHome(); });
+$("#startMix").addEventListener("click", function(){
+  var sel = UNITS.filter(function(u){ return picked[u.n]; });
+  if (sel.length) start(sel);
+});
+
+/* ---------- Game ---------- */
+var cur = null;           // current selection of units
+var seenByPool = loadSeen();   // pool key -> {english: true}, remembered between visits
+function loadSeen(){
+  try { return JSON.parse(localStorage.getItem("wm-seen-v2") || "{}") || {}; } catch(e){ return {}; }
+}
+function saveSeen(){
+  try { localStorage.setItem("wm-seen-v2", JSON.stringify(seenByPool)); } catch(e){}
+}
+var G = null;             // round state
+
+function buildRound(units){
+  var key = units.map(function(u){ return u.n; }).join(",");
+  var pool = [];
+  units.forEach(function(u){ pool = pool.concat(u.words); });
+  var seen = seenByPool[key] || (seenByPool[key] = {});
+  var unseen = pool.filter(function(w){ return !seen[w.en]; });
+  if (!unseen.length){ seen = seenByPool[key] = {}; unseen = pool.slice(); }   // everything played: start over
+  var order = shuffle(unseen.filter(function(w){ return !w.x; }))              // official words first
+    .concat(shuffle(unseen.filter(function(w){ return w.x; })))                // then extra words on the topic
+    .concat(shuffle(pool.filter(function(w){ return seen[w.en]; })));          // recycle only if still short
+  var usedEn = {}, usedEs = {}, items = [];
+  order.forEach(function(w){
+    if (items.length >= ROUND) return;
+    var e = w.en.toLowerCase(), s = w.es.toLowerCase();
+    if (usedEn[e] || usedEs[s]) return;     // no ambiguous pairs inside one round
+    usedEn[e] = usedEs[s] = true;
+    items.push({id: items.length, en: w.en, es: w.es});
+  });
+  items.forEach(function(it){ seen[it.en] = true; });
+  saveSeen();
+  return items;
+}
+
+function start(units){
+  cur = units;
+  var items = buildRound(units);
+  G = {items:items, left:items.length, miss:0, t0:Date.now(), sel:{en:null, es:null}, lock:false, timer:null};
+  $("#gTitle").textContent = units.length === 1 ? (units[0].label || "Unit " + units[0].n + " · " + units[0].t) : "Mix · " + units.length + " units";
+  $("#gProg").setAttribute("aria-valuemax", items.length);
+  var ce = $("#colEn"), cs = $("#colEs");
+  ce.innerHTML = '<div class="colhead">English</div>';
+  cs.innerHTML = '<div class="colhead">Español</div>';
+  shuffle(items).forEach(function(it){ ce.appendChild(tile(it, "en")); });
+  shuffle(items).forEach(function(it){ cs.appendChild(tile(it, "es")); });
+  updateBar();
+  show("game");
+  clearInterval(G.timer);
+  G.timer = setInterval(function(){ $("#gTime").textContent = fmt(Math.floor((Date.now()-G.t0)/1000)); }, 250);
+}
+function tile(it, side){
+  var b = document.createElement("button");
+  b.className = "tile" + (side === "es" ? " es" : "");
+  b.textContent = side === "en" ? it.en : it.es;
+  b.dataset.id = it.id; b.dataset.side = side;
+  b.addEventListener("click", function(){ pick(b); });
+  return b;
+}
+function updateBar(){
+  var total = G.items.length, done = total - G.left;
+  $("#gFill").style.width = (done/total*100) + "%";
+  $("#gProg").setAttribute("aria-valuenow", done);
+  $("#gLeft").textContent = G.left;
+  $("#gMiss").innerHTML = "Misses <b>" + G.miss + "</b>";
+}
+function pick(b){
+  if (G.lock || b.classList.contains("gone")) return;
+  var side = b.dataset.side;
+  if (G.sel[side] === b){ b.classList.remove("sel"); G.sel[side] = null; return; }
+  if (G.sel[side]) G.sel[side].classList.remove("sel");
+  G.sel[side] = b; b.classList.add("sel");
+  if (G.sel.en && G.sel.es) check();
+}
+function check(){
+  var a = G.sel.en, b = G.sel.es;
+  G.sel = {en:null, es:null};
+  G.lock = true;
+  if (a.dataset.id === b.dataset.id){
+    a.classList.remove("sel"); b.classList.remove("sel");
+    a.classList.add("ok"); b.classList.add("ok");
+    setTimeout(function(){
+      a.classList.add("gone"); b.classList.add("gone");
+      G.left--; updateBar();
+      G.lock = false;
+      setTimeout(function(){
+        a.remove(); b.remove();
+        if (G.left === 0) finish();
+      }, 280);
+    }, 160);
+  } else {
+    G.miss++; updateBar();
+    a.classList.remove("sel"); b.classList.remove("sel");
+    a.classList.add("wrong"); b.classList.add("wrong");
+    setTimeout(function(){
+      a.classList.remove("wrong"); b.classList.remove("wrong");
+      G.lock = false;
+    }, 420);
+  }
+}
+$("#backBtn").addEventListener("click", function(){
+  if (G) clearInterval(G.timer);
+  show("home");
+});
+
+/* ---------- End ---------- */
+function finish(){
+  clearInterval(G.timer);
+  var secs = Math.floor((Date.now()-G.t0)/1000);
+  var n = G.items.length;
+  var acc = Math.round(n / (n + G.miss) * 100);
+  var title, sub;
+  if (G.miss === 0){ title = "Flawless."; sub = "Not a single slip. Every pair matched first time."; }
+  else if (acc >= 85){ title = "Sharp work."; sub = "Just a couple of wobbles. Another round will lock them in."; }
+  else if (acc >= 65){ title = "Getting there."; sub = "Plenty of pairs landed. The next 25 will bring new words."; }
+  else { title = "Good practice."; sub = "Tricky list. Play another round and the words will start to stick."; }
+  showEnd(title, sub, [[fmt(secs),"Time"],[G.miss,"Misses"],[acc+"%","Accuracy"]], "Next 25", function(){ start(cur); });
+  if (acc >= 65) confetti();
+}
+var againFn = null;
+function showEnd(title, sub, stats, againLabel, fn){
+  $("#eTitle").textContent = title;
+  $("#eSub").textContent = sub;
+  $("#eStats").innerHTML = stats.map(function(s){ return "<div><b>"+s[0]+"</b><span>"+s[1]+"</span></div>"; }).join("");
+  $("#againBtn").textContent = againLabel;
+  againFn = fn;
+  show("end");
+}
+$("#againBtn").addEventListener("click", function(){ if (againFn) againFn(); });
+$("#changeBtn").addEventListener("click", function(){ show("home"); });
+
+function confetti(){
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var box = $("#confetti"), cols = ["#5B3DF5","#FFE35C","#F2415F","#12A66A","#FF8A3D"];
+  box.innerHTML = "";
+  for (var i=0;i<44;i++){
+    var p = document.createElement("i");
+    p.style.left = Math.random()*100 + "vw";
+    p.style.background = cols[i % cols.length];
+    p.style.animationDuration = (1.8 + Math.random()*1.6) + "s";
+    p.style.animationDelay = (Math.random()*0.5) + "s";
+    box.appendChild(p);
+  }
+  setTimeout(function(){ box.innerHTML = ""; }, 4200);
+}
+
+/* ---------- Exam skills ---------- */
+var RUSH_SECS = 90;
+var PREPS = ["in","on","at","of","for","to","with","from","about","by"];
+
+/* phrasal verb | Español | sentence | (answer form if different) */
+var PV_DATA = `give up|dejar de|He decided to ____ smoking after New Year.
+look after|cuidar de|Could you ____ my cat while I'm on holiday?
+look up|buscar (en un diccionario)|Can you ____ the word in the dictionary?
+put off|posponer|We had to ____ the meeting until next week.
+turn down|rechazar|She decided to ____ the job offer.
+come across|encontrarse por casualidad con|You never know what you might ____ in an old attic.
+carry out|llevar a cabo|The scientists will ____ the experiment next month.
+break down|averiarse|I hope the car doesn't ____ on the motorway.
+find out|descubrir|I want to ____ what time the train leaves.
+get over|superar (una enfermedad)|It took her weeks to ____ the flu.
+get along with|llevarse bien con|Do you ____ your new colleagues?
+run out of|quedarse sin|We're going to ____ petrol if we don't stop soon.
+set up|fundar|They plan to ____ their own company next year.
+take off|despegar|The plane is about to ____.
+take up|empezar (una afición)|I'd like to ____ yoga this autumn.
+turn up|aparecer|He promised to come, but he didn't ____.
+bring up|criar|It's hard to ____ three children on one salary.
+call off|cancelar|The organisers have decided to ____ the festival altogether.
+cut down on|reducir el consumo de|You should ____ sugar if you want to lose weight.
+deal with|ocuparse de|The manager has to ____ a lot of complaints every day.
+end up|acabar|If you don't plan the route, you'll ____ lost.
+fall out with|enemistarse con|I don't want to ____ my sister over something so silly.
+get away with|salirse con la suya|He cheats in every test and somehow manages to ____ it.
+hold on|esperar un momento|Could you ____ for a moment? I'm on the other line.
+keep up with|seguir el ritmo de|It's hard to ____ all the changes in technology.
+let down|decepcionar|I promised to help, and I don't want to ____ my friends.
+look forward to|tener ganas de|We ____ seeing you next week.
+make up|inventar|He'd better not ____ another excuse.
+pick up|recoger|Can you ____ the kids from school at four?
+point out|señalar|I'd like to ____ that the deadline is tomorrow.
+put up with|soportar|I can't ____ the noise any longer.
+show off|presumir|He bought a sports car just to ____ in front of his friends.
+stand for|significar|What does the abbreviation EU ____?
+take after|parecerse a|People say I ____ my father.
+throw away|tirar|Don't ____ those bottles; we can recycle them.
+try on|probarse|Would you like to ____ the jacket before you buy it?
+turn into|convertirse en|The caterpillar will ____ a butterfly.
+wear out|desgastarse|If you walk every day, these shoes will ____ quickly.
+work out|hacer ejercicio|I try to ____ at the gym three times a week.
+back up|hacer una copia de seguridad de|Please ____ your files before you update the system.
+bring about|provocar|The new law could ____ big changes in education.
+catch up with|ponerse al día con|I need to ____ my emails after the holiday.
+come up with|idear|We need to ____ a better plan.
+drop out of|abandonar (los estudios)|He decided to ____ university in his second year.
+get by|arreglárselas|We can barely ____ on one salary.
+give in|ceder|After an hour of arguing, he finally decided to ____.
+go through|pasar por (una mala etapa)|She had to ____ a very difficult time after the accident.
+hand in|entregar|Students must ____ their essays by Friday.
+look into|investigar|The police will ____ the case.
+pass away|fallecer|My grandmother is very old and might ____ soon.
+pull off|lograr (algo difícil)|Nobody thought he could ____ such a difficult plan.
+rely on|confiar en|You can always ____ me if you need help.
+settle down|sentar la cabeza|He wants to ____ and start a family.
+take over|hacerse cargo de|The new manager will ____ the department next month.
+turn out|resultar|I hope everything will ____ all right.
+break up|romper (una relación)|They decided to ____ after five years together.
+put on|ponerse (ropa)|It's freezing outside, so ____ a warm coat.
+move on|pasar página|It's time to forget the past and ____.
+run away|escaparse|The boy tried to ____ from home.
+grow up|crecer|I'd like my children to ____ in a small town.
+check in|registrarse (en un hotel)|You can ____ at the hotel from two o'clock.
+pay back|devolver (dinero)|I'll ____ the money I owe you on Friday.`;
+
+/* idiom | Español (meaning) | sentence | (answer form if different) */
+var ID_DATA = `a piece of cake|pan comido|The exam was ____; I finished it in twenty minutes.
+under the weather|pachucho|I'm feeling a bit ____ today, so I'll stay in bed.
+once in a blue moon|muy de vez en cuando|We only eat out ____, maybe twice a year.
+break the ice|romper el hielo|He told a joke to ____ at the start of the meeting.
+hit the nail on the head|dar en el clavo|You ____ when you said the problem is communication.
+spill the beans|irse de la lengua|Please don't ____ about the surprise party!
+cost an arm and a leg|costar un ojo de la cara|I won't buy that bag; it would ____.
+on the ball|espabilado / al tanto|Our new assistant is really ____; she never misses a deadline.
+out of the blue|de repente|She called me ____ after ten years of silence.
+the last straw|la gota que colma el vaso|He arrived two hours late again, and that was ____.
+bite off more than you can chew|abarcar más de lo que se puede|I think I've ____ by taking on three projects.|bitten off more than I can chew
+pull someone's leg|tomar el pelo a alguien|Are you serious, or are you ____?|pulling my leg
+in the same boat|en el mismo barco|Don't worry about the deadline; we're all ____.
+get cold feet|echarse atrás|He ____ the night before the wedding.|got cold feet
+call it a day|dejarlo por hoy|We've been working for ten hours; let's ____.
+beat around the bush|andarse por las ramas|Stop ____ and tell me what happened.|beating around the bush
+a blessing in disguise|una bendición disfrazada|Losing that job was ____; I found a much better one.
+back to square one|volver al punto de partida|The test failed, so we're ____ again.
+the ball is in your court|te toca mover ficha|I've made my offer, so now ____.
+miss the boat|perder el tren|If you don't apply today, you'll ____.
+go the extra mile|esforzarse más|If you want to succeed, you must be ready to ____.
+on thin ice|en la cuerda floja|After being late again, he's ____ with the boss.
+see eye to eye|estar de acuerdo|My brother and I never ____ about politics.
+cut corners|escatimar esfuerzos|The builders ____ to save money, and now the roof leaks.
+through thick and thin|en las buenas y en las malas|True friends stay together ____.
+add insult to injury|echar sal en la herida|They lost my luggage and, to ____, they were rude about it.
+jump on the bandwagon|subirse al carro|Everyone is investing in crypto, so he decided to ____.
+kill two birds with one stone|matar dos pájaros de un tiro|I'll do the shopping on my way home, ____.|killing two birds with one stone
+a drop in the ocean|una gota en el océano|Our donation was just ____ compared with what they need.
+speak of the devil|hablando del rey de Roma|____! We were just talking about you.
+the tip of the iceberg|la punta del iceberg|The problems you can see are just ____.
+the best of both worlds|lo mejor de los dos mundos|Working from home two days a week gives me ____.
+get out of hand|descontrolarse|The party started to ____ around midnight.
+keep an eye on|vigilar|Could you ____ my bag for a minute?
+pull yourself together|recomponerte|Come on, ____! It's only a small mistake.
+sit on the fence|no tomar partido|You can't ____ forever; you have to decide.
+on cloud nine|en el séptimo cielo|She was ____ after she heard the news.
+have a lot on your plate|tener mucho trabajo|I can't take another project; I ____ already.|have a lot on my plate
+jump the gun|precipitarse|Don't ____; wait until we have all the results.
+make ends meet|llegar a fin de mes|With two jobs, she can barely ____.
+take it with a pinch of salt|tomárselo con cautela|Gossip is usually exaggerated, so ____.
+the elephant in the room|el tema incómodo que nadie menciona|Nobody wanted to mention ____: the company was losing money.
+a rule of thumb|regla general|As ____, you should drink two litres of water a day.
+draw the line|poner un límite|I'm happy to help, but I ____ at lending you money.
+bend over backwards|hacer todo lo posible|The staff ____ to make our stay perfect.|bent over backwards
+by the skin of your teeth|por los pelos|I passed the exam ____.|by the skin of my teeth
+easier said than done|más fácil decirlo que hacerlo|Losing weight is ____.
+not my cup of tea|no es santo de mi devoción|Horror films are ____; I prefer comedies.
+sleep on it|consultarlo con la almohada|It's a big decision, so let me ____.
+have second thoughts|tener dudas|I'm ____ about moving abroad.|having second thoughts`;
+
+/* sentence | preposition */
+var PP_DATA = `She's very interested ____ modern art.|in
+I'm afraid ____ spiders.|of
+He's really good ____ playing the guitar.|at
+They are responsible ____ the whole project.|for
+It all depends ____ the weather.|on
+I'm looking forward ____ the holidays.|to
+She is married ____ a doctor.|to
+He apologised ____ being late.|for
+We're very proud ____ our daughter.|of
+I'm worried ____ the exam.|about
+It's very similar ____ the one I had before.|to
+She suffers ____ terrible headaches.|from
+I insist ____ paying for dinner.|on
+They are very fond ____ their grandparents.|of
+He's keen ____ football.|on
+She was jealous ____ her sister's success.|of
+I'm allergic ____ nuts.|to
+He was accused ____ stealing a car.|of
+I'm not used ____ getting up so early.|to
+She was dressed ____ black.|in
+I completely agree ____ you.|with
+He's addicted ____ video games.|to
+We congratulated her ____ passing the exam.|on
+The teacher blamed him ____ the mistake.|for
+I'm so excited ____ the trip.|about
+She's capable ____ doing much better.|of
+She's engaged ____ a French man.|to
+He's famous ____ his paintings.|for
+I'm satisfied ____ the service.|with
+The film is based ____ a true story.|on
+He prevented them ____ leaving.|from
+She's very committed ____ her job.|to
+The company succeeded ____ opening a new branch.|in
+She specialises ____ tax law.|in
+I'm sick ____ his excuses.|of
+He's absent ____ school today.|from
+The course consists ____ ten lessons.|of
+You must adapt ____ the new situation.|to
+We rely ____ our teachers.|on
+He stared ____ me in silence.|at
+Smoking is bad ____ your health.|for
+I'm in charge ____ the marketing team.|of
+I prefer tea ____ coffee.|to
+The accident resulted ____ three injuries.|in
+He doesn't believe ____ ghosts.|in
+Please take care ____ the baby.|of
+She's crazy ____ jazz.|about
+I was listening ____ the radio.|to
+I waited ____ him for an hour.|for
+Don't laugh ____ me!|at
+She's aware ____ the risks.|of
+I object ____ being treated like that.|to
+There has been an increase ____ prices.|in
+We need a solution ____ this problem.|to
+He's recovering ____ a bad illness.|from
+I'm in favour ____ the new plan.|of`;
+
+function parseQ(txt, kind){
+  return txt.trim().split("\n").filter(Boolean).map(function(l, i){
+    var f = l.split("|");
+    if (kind === "pp") return {id:kind+i, s:f[0].trim(), a:f[1].trim(), en:f[1].trim(), es:""};
+    return {id:kind+i, en:f[0].trim(), es:f[1].trim(), s:f[2].trim(), a:(f[3] || f[0]).trim()};
+  });
+}
+var SKILLS = {
+  pv:{name:"Phrasal verbs", h:22, pairs:true, rushName:"Gap Rush", items:parseQ(PV_DATA,"pv"),
+      blurb:"Learn them in pairs, then pick the one that fits the sentence.", hint:"Which phrasal verb completes the sentence?"},
+  id:{name:"Idioms", h:318, pairs:true, rushName:"Idiom Detective", items:parseQ(ID_DATA,"id"),
+      blurb:"Match each idiom to its meaning, or find the idiom that fits the situation.", hint:"Which idiom fits the situation?"},
+  pp:{name:"Dependent prepositions", h:196, pairs:false, rushName:"Gap Rush", items:parseQ(PP_DATA,"pp"),
+      blurb:"Interested in, afraid of, depend on. Pick the right preposition against the clock.", hint:"Which preposition completes the sentence?"}
+};
+
+var skillsEl = $("#skills");
+Object.keys(SKILLS).forEach(function(k){
+  var d = SKILLS[k];
+  var card = document.createElement("div");
+  card.className = "skill";
+  card.style.setProperty("--h", d.h);
+  var h = "<h3>"+d.name+"</h3><p>"+d.blurb+"</p><span class='count'>"+d.items.length+" items</span><div class='modes'>";
+  if (d.pairs) h += "<button class='mini' data-k='"+k+"' data-m='pairs'>Pairs</button>";
+  h += "<button class='mini' data-k='"+k+"' data-m='rush'>"+d.rushName+"</button></div>";
+  card.innerHTML = h;
+  skillsEl.appendChild(card);
+});
+skillsEl.addEventListener("click", function(e){
+  var b = e.target.closest(".mini");
+  if (!b) return;
+  if (b.dataset.m === "pairs") startSkillPairs(b.dataset.k); else startRush(b.dataset.k);
+});
+
+var sect = "units";
+function renderSect(){
+  $("#tabUnits").setAttribute("aria-pressed", sect === "units");
+  $("#tabSkills").setAttribute("aria-pressed", sect === "skills");
+  $("#pUnits").hidden = sect !== "units";
+  $("#pSkills").hidden = sect !== "skills";
+}
+$("#tabUnits").addEventListener("click", function(){ sect = "units"; renderSect(); });
+$("#tabSkills").addEventListener("click", function(){ sect = "skills"; renderSect(); });
+
+function startSkillPairs(k){
+  var d = SKILLS[k];
+  start([{n:k, t:d.name, label:d.name+" · Pairs", words:d.items.map(function(q){ return {en:q.en, es:q.es}; })}]);
+}
+
+/* ----- Gap Rush: 90 seconds, pick the option that fills the gap ----- */
+var R = null;
+function startRush(key){
+  var d = SKILLS[key], sk = "r-" + key;
+  var seen = seenByPool[sk] || (seenByPool[sk] = {});
+  var unseen = d.items.filter(function(q){ return !seen[q.id]; });
+  if (!unseen.length){ seen = seenByPool[sk] = {}; unseen = d.items.slice(); }
+  var rest = d.items.filter(function(q){ return seen[q.id]; });
+  R = {key:key, d:d, order:shuffle(unseen).concat(shuffle(rest)), i:-1, score:0, streak:0, best:0, right:0, done:0,
+       seen:seen, lock:false, cur:null, tm:null, end:Date.now() + RUSH_SECS*1000};
+  $("#rTitle").textContent = d.rushName + " · " + d.name;
+  $("#rHint").textContent = d.hint + " Answers in a row earn bonus points.";
+  $("#rFill").classList.remove("low");
+  show("rush");
+  updateRush();
+  clearInterval(R.timer);
+  R.timer = setInterval(tick, 200);
+  nextQ();
+}
+function tick(){
+  var rem = Math.max(0, R.end - Date.now());
+  $("#rTime").textContent = fmt(Math.ceil(rem/1000));
+  $("#rFill").style.width = (rem/(RUSH_SECS*1000)*100) + "%";
+  $("#rFill").classList.toggle("low", rem <= 15000);
+  if (rem === 0) endRush();
+}
+function updateRush(){
+  $("#rScore").textContent = R.score + " pts";
+  tick();
+}
+function makeOptions(q, key){
+  var pool;
+  if (key === "pp") pool = PREPS.filter(function(p){ return p !== q.a; });
+  else pool = SKILLS[key].items.map(function(x){ return x.a; }).filter(function(a){ return a !== q.a; });
+  pool = shuffle(pool);
+  var picks = [];
+  if (key === "pv"){
+    var base = q.a.split(" ")[0];
+    var same = pool.filter(function(p){ return p.split(" ")[0] === base; });
+    if (same.length) picks.push(same[0]);
+  }
+  pool.forEach(function(p){ if (picks.length < 3 && picks.indexOf(p) < 0) picks.push(p); });
+  return shuffle(picks.concat(q.a));
+}
+function nextQ(){
+  R.i++;
+  if (R.i >= R.order.length){ endRush(); return; }
+  var q = R.order[R.i];
+  R.cur = q; R.lock = false;
+  var p = $("#rQ");
+  p.innerHTML = "";
+  var parts = q.s.split("____");
+  p.appendChild(document.createTextNode(parts[0]));
+  var gap = document.createElement("span");
+  gap.className = "gap"; gap.id = "rGap"; gap.innerHTML = "&nbsp;";
+  p.appendChild(gap);
+  p.appendChild(document.createTextNode(parts[1] || ""));
+  var box = $("#rOpts");
+  box.innerHTML = "";
+  makeOptions(q, R.key).forEach(function(o){
+    var b = document.createElement("button");
+    b.className = "opt"; b.textContent = o;
+    b.addEventListener("click", function(){ answer(b, o); });
+    box.appendChild(b);
+  });
+  $("#rFb").textContent = "";
+}
+function answer(btn, val){
+  if (R.lock) return;
+  R.lock = true;
+  var q = R.cur, ok = (val === q.a);
+  R.done++;
+  R.seen[q.id] = true; saveSeen();
+  var gap = $("#rGap");
+  gap.textContent = q.a;
+  gap.classList.add(ok ? "good" : "bad");
+  Array.prototype.forEach.call($("#rOpts").children, function(b){
+    b.disabled = true;
+    if (b.textContent === q.a) b.classList.add("ok");
+    else if (b === btn) b.classList.add("wrong");
+    else b.classList.add("dim");
+  });
+  var fb = $("#rFb");
+  var gloss = q.es ? "<b>" + q.a + "</b> = " + q.es : "<b>" + q.s.replace("____", q.a) + "</b>";
+  if (ok){
+    R.right++; R.streak++; R.best = Math.max(R.best, R.streak);
+    R.score += 10 + Math.min(R.streak - 1, 5) * 2;
+    fb.innerHTML = "Correct" + (R.streak >= 3 ? " · streak " + R.streak : "") + "<br>" + gloss;
+  } else {
+    R.streak = 0;
+    fb.innerHTML = "Not this time<br>" + gloss;
+  }
+  updateRush();
+  R.tm = setTimeout(nextQ, ok ? 900 : 2000);
+}
+function endRush(){
+  if (!R || R.over) return;
+  R.over = true;
+  clearInterval(R.timer); clearTimeout(R.tm); R.lock = true;
+  var acc = R.done ? R.right / R.done : 0;
+  var title, sub;
+  if (R.done >= 8 && acc >= 0.9){ title = "Lightning fast."; sub = "Quick and accurate. You clearly know these."; }
+  else if (acc >= 0.7){ title = "Strong run."; sub = "Most answers landed. Play again for new questions."; }
+  else { title = "Keep going."; sub = "Read the explanations after each wrong answer. They stick better that way."; }
+  var k = R.key;
+  showEnd(title, sub, [[R.score, "Points"], [R.right + "/" + R.done, "Correct"], [R.best, "Best streak"]], "Play again", function(){ startRush(k); });
+  if (R.done >= 8 && acc >= 0.7) confetti();
+}
+$("#rBack").addEventListener("click", function(){
+  if (R){ R.over = true; clearInterval(R.timer); clearTimeout(R.tm); }
+  show("home");
+});
+document.addEventListener("keydown", function(e){
+  if (!R || screens.rush.hidden || R.lock) return;
+  var n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4){ var b = $("#rOpts").children[n-1]; if (b) b.click(); }
+});
+
+renderHome();
+renderSect();
+</script>
+</body>
+</html>
