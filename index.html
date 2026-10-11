@@ -1229,7 +1229,8 @@ function confetti(){
 }
 
 /* ---------- Exam skills ---------- */
-var RUSH_SECS = 90;
+var RUSH_SECS = 240;   // 4 minutes per round
+var RUSH_QS = 20;      // questions per round
 var PREPS = ["in","on","at","of","for","to","with","from","about","by"];
 
 /* phrasal verb | Español | sentence | (answer form if different) */
@@ -1455,7 +1456,7 @@ function startSkillPairs(k){
   start([{n:k, t:d.name, label:d.name+" · Pairs", words:d.items.map(function(q){ return {en:q.en, es:q.es}; })}]);
 }
 
-/* ----- Gap Rush: 90 seconds, pick the option that fills the gap ----- */
+/* ----- Gap Rush: 20 questions in 4 minutes, pick the option that fills the gap ----- */
 var R = null;
 function startRush(key){
   var d = SKILLS[key], sk = "r-" + key;
@@ -1463,10 +1464,10 @@ function startRush(key){
   var unseen = d.items.filter(function(q){ return !seen[q.id]; });
   if (!unseen.length){ seen = seenByPool[sk] = {}; unseen = d.items.slice(); }
   var rest = d.items.filter(function(q){ return seen[q.id]; });
-  R = {key:key, d:d, order:shuffle(unseen).concat(shuffle(rest)), i:-1, score:0, streak:0, best:0, right:0, done:0,
+  R = {key:key, d:d, order:shuffle(unseen).concat(shuffle(rest)).slice(0, RUSH_QS), i:-1, score:0, streak:0, best:0, right:0, done:0,
        seen:seen, lock:false, cur:null, tm:null, end:Date.now() + RUSH_SECS*1000};
   $("#rTitle").textContent = d.rushName + " · " + d.name;
-  $("#rHint").textContent = d.hint + " Answers in a row earn bonus points.";
+  $("#rHint").textContent = d.hint + " " + RUSH_QS + " questions, 4 minutes. Answers in a row earn bonus points.";
   $("#rFill").classList.remove("low");
   show("rush");
   updateRush();

@@ -3,7 +3,7 @@
 A matching game to practise B2 English vocabulary. Single static file, no build step, no dependencies.
 
 - **Vocabulary units 1-10:** pair English words with their Spanish translation, 25 per round, one unit or a mix of units. Played words are remembered (localStorage) so new rounds show new words.
-- **Exam skills:** phrasal verbs, idioms and dependent prepositions, with Pairs and Gap Rush (90-second multiple choice).
+- **Exam skills:** phrasal verbs, idioms and dependent prepositions, with Pairs and Gap Rush (20 multiple-choice questions in 4 minutes).
 
 ## Run locally
 
