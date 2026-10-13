@@ -1,0 +1,1697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}*{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Word Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700&display=swap">
+<style>
+/* Layout: one centred column. Home = mode switch + unit grid. Game = two columns of tiles (English | Español) under a sticky score bar. */
+:root{
+  --bg:#E9E7FF; --surface:#FFFFFF; --ink:#17143A; --muted:#5B5887; --line:#17143A;
+  --accent:#5B3DF5; --accent-ink:#FFFFFF; --es:#FFE35C; --es-ink:#17143A;
+  --good:#12A66A; --bad:#F2415F; --pastel-ink:#17143A;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14112E; --surface:#25214F; --ink:#F2F0FF; --muted:#A9A5D6; --line:#080618;
+    --accent:#8B73FF; --accent-ink:#0F0B2E; --es:#F5D547; --es-ink:#17143A;
+    --good:#2BD08C; --bad:#FF6B86; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14112E; --surface:#25214F; --ink:#F2F0FF; --muted:#A9A5D6; --line:#080618;
+  --accent:#8B73FF; --accent-ink:#0F0B2E; --es:#F5D547; --es-ink:#17143A;
+  --good:#2BD08C; --bad:#FF6B86; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:760px;margin-inline:auto}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+h1,h2{font-family:var(--display);font-weight:800;text-wrap:balance;margin:0;letter-spacing:-.02em}
+
+/* Home */
+.hero{display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px}
+.hero h1{font-size:clamp(2.6rem,9vw,4.2rem);line-height:.95}
+.hero p{margin:10px 0 0;color:var(--muted);font-weight:600;max-width:34ch}
+.demo{position:relative;width:190px;height:96px;flex:none}
+.demo .tile{position:absolute;width:140px;cursor:default;pointer-events:none}
+.demo .a{left:0;top:0;transform:rotate(-5deg)}
+.demo .b{right:0;bottom:0;transform:rotate(4deg)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;background:var(--surface);border:2.5px solid var(--line);border-radius:18px;box-shadow:0 4px 0 var(--line);margin-bottom:18px}
+.seg button{border:0;background:transparent;border-radius:12px;padding:12px 10px;font-weight:700;font-size:1rem;display:flex;flex-direction:column;align-items:center;gap:2px}
+.seg button small{font-weight:600;color:var(--muted);font-size:.78rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button[aria-pressed="true"] small{color:inherit;opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.unit{position:relative;text-align:left;background:hsl(var(--h) 90% 76%);color:var(--pastel-ink);border:2.5px solid var(--line);border-radius:16px;box-shadow:0 4px 0 var(--line);padding:12px 14px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .12s,box-shadow .12s,opacity .15s}
+.unit:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}
+.unit .num{font:800 .8rem var(--display);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.unit .name{font:700 1.08rem/1.15 var(--display)}
+.unit .count{font-size:.82rem;font-weight:600;opacity:.8;font-variant-numeric:tabular-nums}
+.unit .tick{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:none;place-items:center;font-weight:800;font-size:.85rem;color:var(--ink)}
+.mixmode .unit .tick{display:grid}
+.mixmode .unit[aria-pressed="true"] .tick{background:var(--ink);color:var(--surface)}
+.mixmode .unit[aria-pressed="false"]{opacity:.45;box-shadow:0 2px 0 var(--line)}
+.mixbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.mixbar .spacer{flex:1}
+.btn{border:2.5px solid var(--line);border-radius:14px;background:var(--surface);padding:11px 16px;font-weight:700;box-shadow:0 4px 0 var(--line);transition:transform .1s,box-shadow .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{border:0;background:none;font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:8px 4px;color:var(--ink)}
+
+/* Game */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 12px;margin-bottom:6px}
+.barrow{display:flex;align-items:center;gap:10px}
+.barrow .title{font:800 1.05rem var(--display);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.stat{font-weight:700;font-variant-numeric:tabular-nums;background:var(--surface);border:2.5px solid var(--line);border-radius:12px;padding:5px 10px;font-size:.92rem;white-space:nowrap}
+.stat.bad b{color:var(--bad)}
+.progress{height:14px;border:2.5px solid var(--line);border-radius:99px;background:var(--surface);margin-top:10px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--good);border-radius:99px;transition:width .3s ease}
+.hint{color:var(--muted);font-weight:600;font-size:.88rem;margin:8px 2px 12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.colhead{font:800 .78rem var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-inline:4px}
+.tile{font:600 15px/1.2 var(--body);text-align:left;min-height:50px;padding:11px 12px;border:2.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 4px 0 var(--line);overflow-wrap:anywhere;hyphens:auto;display:flex;align-items:center;transition:transform .12s,box-shadow .12s,background .12s}
+.tile.es{background:var(--es);color:var(--es-ink)}
+@media (hover:hover){.tile:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}}
+.tile.sel{background:var(--accent);color:var(--accent-ink);transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.tile.wrong{background:var(--bad);color:#fff;animation:shake .4s}
+.tile.ok{background:var(--good);color:#fff}
+.tile.gone{pointer-events:none;animation:pop .3s ease forwards}
+@keyframes shake{0%,100%{translate:0}20%{translate:-6px}40%{translate:6px}60%{translate:-4px}80%{translate:3px}}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.07)}100%{transform:scale(.5);opacity:0}}
+
+/* End */
+.end{text-align:center;padding-top:24px}
+.end h2{font-size:clamp(2.2rem,8vw,3.6rem);line-height:1}
+.end p{color:var(--muted);font-weight:600;margin:10px 0 22px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.stats div{background:var(--surface);border:2.5px solid var(--line);border-radius:16px;box-shadow:0 4px 0 var(--line);padding:14px 6px}
+.stats b{display:block;font:800 1.9rem var(--display);font-variant-numeric:tabular-nums}
+.stats span{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:20}
+.confetti i{position:absolute;top:-16px;width:10px;height:16px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+/* Tabs + exam skill cards */
+.tabs{display:flex;gap:6px 20px;flex-wrap:wrap;margin-bottom:18px;border-bottom:3px solid var(--line)}
+.tabs button{border:0;background:none;font:800 1.05rem var(--display);color:var(--muted);padding:8px 2px 10px;margin-bottom:-3px;border-bottom:6px solid transparent;letter-spacing:-.01em}
+.tabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.skill{background:hsl(var(--h) 90% 76%);color:var(--pastel-ink);border:2.5px solid var(--line);border-radius:18px;box-shadow:0 4px 0 var(--line);padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.skill h3{font:800 1.35rem/1.1 var(--display);margin:0;letter-spacing:-.02em}
+.skill p{margin:0;font-size:.92rem;font-weight:600;opacity:.85}
+.skill .count{font-size:.8rem;font-weight:700;opacity:.75}
+.skill .modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:8px}
+.mini{border:2.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:8px 12px;font-weight:700;font-size:.92rem;box-shadow:0 3px 0 var(--line);transition:transform .1s,box-shadow .1s}
+.mini:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+
+/* Gap Rush */
+#rFill{background:var(--accent);transition:width .2s linear}
+#rFill.low{background:var(--bad)}
+.q{background:var(--surface);border:2.5px solid var(--line);border-radius:20px;box-shadow:0 5px 0 var(--line);padding:22px 18px;margin-bottom:16px;min-height:116px;display:flex;align-items:center}
+.q p{margin:0;font:700 clamp(1.15rem,4.6vw,1.55rem)/1.45 var(--display);overflow-wrap:anywhere}
+.gap{display:inline-block;min-width:3.4em;margin-inline:.15em;border-bottom:4px solid var(--accent);color:var(--accent);text-align:center;padding-inline:.15em}
+.gap.good{color:var(--good);border-color:var(--good)}
+.gap.bad{color:var(--bad);border-color:var(--bad)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{font:700 1.02rem/1.2 var(--body);text-align:center;min-height:62px;padding:12px 10px;border:2.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 4px 0 var(--line);overflow-wrap:anywhere;display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,background .12s}
+@media (hover:hover){.opt:not([disabled]):hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--line)}}
+.opt[disabled]{cursor:default}
+.opt.ok{background:var(--good);color:#fff}
+.opt.wrong{background:var(--bad);color:#fff;animation:shake .4s}
+.opt.dim{opacity:.5}
+.fb{min-height:3em;margin:14px 2px 0;font-weight:600;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.fb b{color:var(--ink)}
+/* Recap list on the end screen */
+.recap{text-align:left;margin:0 0 26px;display:flex;flex-direction:column;gap:10px}
+.recap[hidden]{display:none}
+.recap h3{font:800 1.15rem var(--display);margin:4px 2px 2px;text-align:center}
+.ri{background:var(--surface);border:2.5px solid var(--line);border-radius:14px;padding:11px 14px;box-shadow:0 3px 0 var(--line);min-width:0}
+.ri .w{font:800 1.02rem var(--display);overflow-wrap:anywhere}
+.ri .w em{font:600 .92rem var(--body);font-style:normal;color:var(--muted)}
+.ri .x{margin:4px 0 0;font-weight:500;overflow-wrap:anywhere}
+.ri .x mark{background:var(--es);color:var(--es-ink);padding:0 .22em;border-radius:5px;font-weight:700}
+.ri .e{margin:5px 0 0;font-size:.88rem;font-weight:600;color:var(--muted);overflow-wrap:anywhere}
+.ri .mk{float:right;margin-left:10px;font-weight:800;font-size:1.1rem}
+.ri.good .mk{color:var(--good)}
+.ri.bad .mk{color:var(--bad)}
+@media (max-width:420px){
+  .tile{font-size:14px;padding:10px 9px}
+  .cols{gap:8px}
+  .stat{padding:4px 8px;font-size:.84rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <section id="home">
+    <div class="hero">
+      <div>
+        <h1>Word Match</h1>
+        <p>Pair every English word with its Spanish translation. 10 pairs per round, then a recap with each word in a sentence.</p>
+      </div>
+      <div class="demo" aria-hidden="true">
+        <div class="tile a">gut feeling</div>
+        <div class="tile es b">intuición</div>
+      </div>
+    </div>
+
+    <div class="tabs" role="group" aria-label="Section">
+      <button id="tabUnits" aria-pressed="true">Vocabulary units</button>
+      <button id="tabSkills" aria-pressed="false">Exam skills</button>
+      <button id="tabGram" aria-pressed="false">Grammar</button>
+    </div>
+
+    <div id="pUnits">
+    <div class="seg" role="group" aria-label="Game mode">
+      <button id="modeOne" aria-pressed="true">One unit<small>Tap a unit to start</small></button>
+      <button id="modeMix" aria-pressed="false">Mix units<small>Choose which ones to blend</small></button>
+    </div>
+
+    <div id="units" class="grid"></div>
+
+    <div id="mixbar" class="mixbar" hidden>
+      <button class="link" id="allBtn">Select all</button>
+      <button class="link" id="noneBtn">Clear</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="startMix">Start mix</button>
+    </div>
+    </div>
+
+    <div id="pSkills" hidden>
+      <div class="skills" id="skills"></div>
+    </div>
+
+    <div id="pGram" hidden>
+      <div class="skills" id="grammar"></div>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="bar">
+      <div class="barrow">
+        <button class="btn" id="backBtn" aria-label="Back to units" style="padding:6px 12px">&larr;</button>
+        <div class="title" id="gTitle"></div>
+        <div class="stat" id="gTime">0:00</div>
+        <div class="stat bad" id="gMiss">Misses <b>0</b></div>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="25" aria-valuenow="0" id="gProg"><i id="gFill"></i></div>
+    </div>
+    <p class="hint"><span id="gLeft">25</span> pairs left. Tap a word, then its translation. Either column first.</p>
+    <div class="cols">
+      <div class="col" id="colEn"><div class="colhead">English</div></div>
+      <div class="col" id="colEs"><div class="colhead">Español</div></div>
+    </div>
+  </section>
+
+  <section id="rush" hidden>
+    <div class="bar">
+      <div class="barrow">
+        <button class="btn" id="rBack" aria-label="Back to menu" style="padding:6px 12px">&larr;</button>
+        <div class="title" id="rTitle"></div>
+        <div class="stat" id="rTime">1/10</div>
+        <div class="stat" id="rScore">✓ 0</div>
+      </div>
+      <div class="progress"><i id="rFill" style="width:0"></i></div>
+    </div>
+    <p class="hint" id="rHint"></p>
+    <div class="q"><p id="rQ"></p></div>
+    <div class="opts" id="rOpts"></div>
+    <p class="fb" id="rFb" aria-live="polite"></p>
+    <div class="actions"><button class="btn primary" id="rNext" hidden>Next</button></div>
+  </section>
+
+  <section id="end" class="end" hidden>
+    <h2 id="eTitle"></h2>
+    <p id="eSub"></p>
+    <div class="stats" id="eStats"></div>
+    <div class="recap" id="eRecap" hidden></div>
+    <div class="actions">
+      <button class="btn primary" id="againBtn">Next 25</button>
+      <button class="btn" id="changeBtn">Back to menu</button>
+    </div>
+  </section>
+
+</div>
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script>
+/* Word lists from WORDLIST LLIBRE B2.2 (format: English|Español). Three obvious typos fixed. */
+var RAW = [
+{n:1,t:"Personality & Work-Life",h:265,d:`foolproof|infalible
+geek|friki
+good-natured rivalry|sana rivalidad
+gut feeling|intuición
+job-seeker|solicitante de empleo
+light-hearted response|respuesta desenfadada
+the point of|la cuestión
+work–life balance|equilibrio entre la vida personal y laboral
+absent-minded|distraído
+bad-tempered|de mal humor
+big-headed|engreído
+easy-going|de trato fácil
+good-tempered|sereno
+laid-back|despreocupado
+narrow-minded|estrecho de miras
+open-minded|abierto de mente
+self-centred|egocéntrico
+strong-willed|de fuerte carácter
+tight-fisted|agarrado
+two-faced|falso
+well-balanced|equilibrado
+well-behaved|bien educados`},
+{n:2,t:"Health & Clothes",h:340,d:`allergic reaction|reacción alérgica
+be sick|ponerse enfermo
+bleed|sangrar
+blister|ampolla
+(high/low) blood pressure|presión arterial (alta/baja)
+burn|quemar
+choke|atragantarse
+cold|resfriado
+come round|volver en sí
+cough|tos / toser
+cut|cortarse
+diarrhoea|diarrea
+dizzy|mareado
+earache|dolor de oído
+faint|desmayarse
+feel sick|sentirse enfermo
+flu|gripe
+food poisoning|intoxicación alimentaria
+get over|curarse (de)
+headache|dolor de cabeza
+hurt|dolor / doler
+lie down|echarse
+pass out|desmayarse
+rash|sarpullido
+sore throat|dolor de garganta
+sprain|torcer(se)
+stomach ache|dolor de estómago
+sunburn|quemarse por el sol
+swell|dar de sí / hincharse
+temperature|fiebre
+throw up|vomitar
+toothache|dolor de muelas
+unconscious|inconsciente
+vomit|vomitar
+casual|informal
+checked|de cuadros
+classic|clásico
+cotton vest|camiseta de algodón
+denim waistcoat|chaleco vaquero
+dress up|arreglarse
+fit|quedar bien (algo)
+fur collar|estola de piel
+get changed|cambiarse
+get dressed|vestirse
+get undressed|quitar(se) la ropa
+go with|pegar (con)
+hang up|colgar
+hooded|con capucha
+lace top|top de encaje
+leather sandals|sandalias de cuero
+linen suit|traje de lino
+long-sleeved|de manga larga
+loose|holgado
+lycra swimsuit|bañador de lycra
+match|a juego
+old-fashioned|anticuado
+patterned|estampado
+plain|liso / sencillo
+scruffy|desaliñado
+silk scarf|pañuelo de seda
+sleeveless|sin mangas
+smart|elegante
+spotted|de lunares
+striped|de rayas
+suede boots|botas de ante
+suit|quedar bien (algo)
+tight|apretado
+velvet bow tie|pajarita de terciopelo
+V-neck|cuello de pico
+woollen cardigan|rebeca de lana`},
+{n:3,t:"Airports & Adverbs",h:25,d:`airport terminal|terminal de aeropuerto
+aisle|pasillo
+baggage drop|mostrador de equipajes
+baggage reclaim|recogida de equipajes
+board|embarcar
+boarding pass|tarjeta de embarque
+business class|business
+cabin crew|personal de cabina
+check|inspeccionar
+check in|facturar
+check-in desk|mostrador de facturación
+closed|cerrado
+collect|recoger
+connecting flight|vuelo de enlace
+customs|aduana
+delayed|retrasado
+departures board|panel de salidas
+direct flight|vuelo directo
+drop off|llevar (a alguien)
+first class|primera clase
+flight time|hora del vuelo
+fill in|rellenar
+gate|puerta
+get off|bajar(se) (de algo)
+get on|subir(se) (a algo)
+hand luggage|equipaje de mano
+illegal goods|productos ilegales
+jet lag|desfase horario
+journey|viaje
+land|aterrizar
+liquid|líquido
+long-haul flight|vuelo de larga distancia
+lounge|sala (de compañía aérea)
+luggage|equipaje
+on time|puntual
+pick up|recoger
+row|fila
+runway|pista
+scan|pasar por el escáner
+seat belt|cinturón de seguridad
+security|seguridad
+sharp object|objeto punzante
+take off|despegar
+travel|viajar
+trip|viaje
+trolley|carrito
+turbulence|turbulencia
+actually|en realidad
+apparently|al parecer
+at the end|al final
+at the moment|en estos momentos
+basically|sencillamente
+certainly|desde luego
+especially|especialmente
+even|incluso
+eventually|al final
+ever|alguna vez
+gradually|poco a poco
+hard|duro / duramente
+hardly|apenas
+ideally|lo ideal
+in fact|en realidad
+in the end|al final
+late|tarde
+lately|últimamente
+near|cerca
+nearly|casi
+obviously|obviamente
+specially|expresamente
+still|todavía
+yet|ya / todavía`},
+{n:4,t:"Weather & Take",h:195,d:`below zero|bajo cero
+blizzard|ventisca
+boiling|hacer un calor sofocante
+breeze|brisa
+bright|brillante
+changeable|variable
+chilly|fresco
+clear|despejado
+cool|fresco
+damp|húmedo
+drizzle|lloviznar
+drought|sequía
+flood|inundación
+fog|niebla
+freezing|hacer mucho frío
+hail|granizo
+heatwave|ola de calor
+heavy|intenso
+humid|húmedo
+hurricane|huracán
+icy|helado
+lightning|relámpago
+mild|templado
+mist|neblina
+monsoon|monzón
+pour (with rain)|llover a mares
+settled|estable
+shower|tormenta / chaparrón
+smog|contaminación
+strong|fuerte
+sunny|soleado
+thick|densa
+thunder|trueno
+warm|caluroso / templado
+take advantage of|aprovechar
+take after|parecerse (a alguien)
+take against|estar enfadado / tomar manía
+take care of|encargarse de / cuidar
+take into account|tener en cuenta
+take no notice of|no hacer caso de
+take off|despegar
+take (sth) off|quitarse (algo)
+take (sth) out|llevar (a alguien) / sacar (fuera)
+take part in|participar en
+take pity on|apiadarse de
+take place|tener lugar
+take risks|tomar riesgos
+take (your) time|tomarse el tiempo necesario
+take to|encariñarse con
+take up|empezar a hacer algo`},
+{n:5,t:"Feelings",h:12,d:`astonished|asombrado
+bewildered|perplejo
+delighted|encantado
+desperate|desesperado
+devastated|devastado
+disappointed|decepcionado
+down|decaído
+fed up|harto
+gobsmacked|atónito
+grateful|agradecido
+gutted|quedarse hecho polvo
+homesick|tener nostalgia
+horrified|horrorizado
+lonely|solo
+miserable|abatido
+offended|ofendido
+overwhelmed|abrumado
+proud|orgulloso
+relieved|aliviado
+scared stiff|muerto de miedo
+shattered|hecho añicos
+sick of|harto de
+stunned|aturdido
+thrilled|entusiasmado
+upset|disgustado
+amaze|asombrar
+confuse|confundir
+disappoint|decepcionar
+embarrass|avergonzar
+exhaust|agotado
+frustrate|frustrar
+infuriate|enfurecer
+inspire|inspirar
+terrify|aterrorizar
+thrill|hacer (mucha) ilusión`},
+{n:6,t:"Music, Sleep & Loanwords",h:300,d:`be a light sleeper|tener un sueño ligero
+chorus|estribillo
+concerto|concierto
+conductor|director
+croissant|croissant
+drum|tambor
+encore|bis
+fiancé|prometido
+flute|flauta
+genre|género
+graffiti|grafiti
+hypochondriac|hipocondríaco
+keyboard|teclado
+macchiato|macchiato
+mezzo-soprano|mezzo-soprano
+microphone|micrófono
+orchestra|orquesta
+paparazzi|paparazzi
+philosophy|filosofía
+psychologist|psicólogo
+rhythm|ritmo
+saxophone|saxofón
+soprano|soprano
+symphony|sinfonía
+villa|chalet
+violin|violín
+choir|coro
+chic|elegante
+psychic|adivino
+chauffeur|chófer
+chef|chef
+be fast asleep|dormirse rápido
+blanket|manta
+duvet|edredón
+fall asleep|dormirse
+insomnia|insomnio
+keep you awake|impedir dormir
+nap|siesta
+oversleep|quedarse dormido
+pillow|almohada
+set the alarm|poner la alarma
+sheet|sábana
+have nightmares|tener pesadillas
+sleep like a log|dormir como un tronco
+sleeping pill|pastilla para dormir
+cappuccino|capuchino
+bouquet|ramo
+cello|violonchelo
+barista|barista
+ballet|ballet
+bass guitar|bajo
+yawn|bostezar
+snore|roncar
+sleepy|tener sueño
+sleepwalk|ser sonámbulo
+architecture|arquitectura`},
+{n:7,t:"Body & Verbs",h:150,d:`lips|labio
+liver|hígado
+kneel|arrodillarse
+knee|rodilla
+kidneys|riñón
+hug|abrazar
+hold someone's hand|coger a alguien de la mano
+hip|cadera
+fist|puño
+heart|corazón
+frown|fruncir el ceño
+forehead|frente
+fold your arms|cruzarse de brazos
+eyelid|párpado
+eyelash|pestaña
+lungs|pulmón
+eyebrow|ceja
+heel|tacón
+nails|uñas
+touch your toes|tocarse los dedos de los pies
+palm|palma
+eye|ojo
+yawn|bostezar
+wrist|muñeca
+wrinkles|arruga
+wink|guiñar el ojo
+wave|saludar
+waist|cintura
+thigh|muslo
+neck|cuello
+suck your thumb|chuparse el dedo
+stretch|estirar(se)
+stare|mirar fijamente
+shrug your shoulders|encogerse de hombros
+shake your head|negar con la cabeza
+shake hands|darse la mano
+scratch|rascar
+raise your eyebrows|levantar las cejas
+point|señalar
+stubble|vello
+elbow|codo
+wish|ojalá
+chin|barbilla
+raise|subir
+prevent|impedir
+notice|darse cuenta
+mind|importar
+matter|importar
+lie (past lay)|tumbarse
+lend|prestar
+lay (past laid)|poner (la mesa...)
+hope|esperar
+expect|esperar
+discuss|hablar (de algo)
+comb your hair|peinarse
+borrow|pedir prestado
+beat|derrotar
+avoid|evitar
+argue|argumentar
+advise|aconsejar
+realize|darse cuenta (de)
+refuse|negarse
+deny|negar
+remind|recordar (algo a alguien)
+remember|acordarse (de)
+chew|masticar
+chest|pecho
+calf|pantorrilla
+brush your teeth|lavarse los dientes
+brush your hair|cepillarse el pelo
+brain|cerebro
+bottom|trasero
+blow your nose|sonarse la nariz
+cheek|mejilla
+ankle|tobillo
+win|ganar
+warn|advertir
+wait|esperar
+steal|robar
+rob|robar
+bite your nails|morderse las uñas
+rise|subir`},
+{n:8,t:"Media & Crime",h:45,d:`critic|crítico
+clash|discutir
+censored|censurado
+bid|intentar
+biased|parcial
+back|respaldar
+accurate|preciso
+agony aunt|columnista de consultorio sentimental
+witness|testigo
+verdict|veredicto
+editor|editor
+vandalism|vandalismo
+axe|perder (empleos)
+freelance journalist|periodista freelance
+row|discutir
+newsreader|presentador de noticias
+objective|objetivo
+paparazzi|paparazzi
+presenter|presentador
+quit|dimitir (de)
+quiz|interrogar
+reporter|reportero
+sensational|sensacionalista
+split|separarse
+tip|predecir
+vow|prometer
+wed|casarse (con)
+theft|robo
+hit|afectar
+terrorism|terrorismo
+commentator|comentarista
+smuggling|contrabando
+stalking|acoso
+accuse|acusar
+acquit|absolver
+arrest|detener
+bribery|sobornar
+burglary|robo (de una casa)
+catch|atrapar
+charge|acusar
+commit|cometer
+court|tribunal
+drug dealing|tráfico de drogas
+evidence|prueba
+fraud|fraude
+guilty|culpable
+hacking|hackeo
+blackmail|chantajear
+innocent|inocente
+hijacking|secuestrar
+robbery|robo
+rape|violación
+punishment|castigo
+proof|prueba
+murder|asesinato
+question|interrogar
+kidnapping|secuestro
+jury|jurado
+judge|juez
+investigate|investigar
+mugging|asalto
+sentence|sentencia`},
+{n:9,t:"Business & Word Building",h:95,d:`ignorance|ignorancia
+expectation|expectativa
+hunger|hambre
+hopeless|desesperado
+homeless|sin techo
+height|altura
+improvement|mejora
+heat|calor
+government|gobierno
+friendliness|amabilidad
+connection|relación
+employment|trabajo
+distance|distancia
+development|desarrollo
+death|muerte
+convenience|comodidad
+coldness|frío
+childhood|infancia
+careful|tener cuidado
+bulletproof|a prueba de balas
+intention|intención
+brotherhood|fraternidad
+entertainment|entretenimiento
+loneliness|soledad
+success|éxito
+megacity|megaciudad
+width|ancho
+weakness|punto débil
+waterproof|impermeable
+violence|violencia
+vandalism|vandalismo
+useful|útil
+undrinkable|imbebible
+underdeveloped|subdesarrollado
+unbreakable|irrompible
+ugliness|fealdad
+thought|opinión
+loss|pérdida
+bilingual|bilingüe
+strength|fuerza
+silence|silencio
+racism|racismo
+postgraduate|posgrado
+pollution|contaminación
+overcrowded|superpoblado
+neighbourhood|barrio
+multicultural|multicultural
+monorail|monorraíl
+modernism|modernismo
+misunderstood|entender mal
+subway|metro
+belief|creencia
+excitement|emoción
+antisocial|antisocial
+expand|expandir(se)
+drop|disminuir
+do well|hacer (algo) bien
+do market research|hacer un estudio de mercado
+do business|hacer negocios
+do badly|ir mal
+do a job|hacer un trabajo
+do a deal|hacer un trato
+close down|cerrar
+chain|cadena
+branch|sucursal
+become the market leader|convertirse en el líder del mercado
+any other business|algún otro tema
+sue|demandar
+slogan|eslogan
+publicity|publicidad
+misleading|engañoso
+consumers|consumidor
+claims|afirmar
+brand|marca
+advertisements|anuncios
+advertising campaign|campaña de publicidad
+autopilot|piloto automático
+export|exportar
+flop|fracaso
+boom|explosión
+go out of business|quebrar (negocio)
+alcoholism|alcoholismo
+get down to business|ponerse a trabajar
+accommodation|alojamiento
+abundance|abundancia
+absence|ausencia
+unfinished business|asunto pendiente
+take over|absorber
+recession|recesión
+produce|producir
+none of your business|no es asunto tuyo
+mix business with pleasure|mezclar negocios y placer
+mind your own business|meterse en sus asuntos
+set up|fundar(se)
+merge|fusionar(se)
+head office|sede central
+import|importar
+launch|lanzamiento
+grow|crecer
+make a loss|tener pérdidas
+make a decision|tomar una decisión
+make money|ganar dinero
+make (sb) redundant|despedir (a alguien) por exceso de personal
+manufacture|fabricar
+mean business|actuar en serio
+make a profit|tener beneficios`},
+{n:10,t:"Science & Pairs",h:175,d:`health and safety|salud y seguridad
+forgive and forget|perdonar y olvidar
+dead or alive|vivo o muerto
+cause and effect|causa y efecto
+by and large|en general
+zoology|zoología
+backwards and forwards|de un lado a otro
+all or nothing|todo o nada
+zoological|zoológico
+zoologist|zoólogo
+law and order|ley y orden
+bits and pieces|cosita
+live and learn|todos los días se aprende algo
+sooner or later|tarde o temprano
+now and again|de vez en cuando
+now or never|ahora o nunca
+once or twice|una o dos veces
+peace and quiet|paz y tranquilidad
+pros and cons|pros y contras
+rain or shine|llueva o truene
+right or wrong|para bien o para mal
+safe and sound|sano y salvo
+short and sweet|bueno y breve
+sick and tired|harto
+supply and demand|oferta y demanda
+thunder and lightning|rayos y truenos
+theory|teoría
+more or less|más o menos
+test|examen
+biological|biológico
+scientist|científico
+touch and go|nunca se sabe
+astronomer|astrónomo
+astronomical|astronómico
+astronomy|astronomía
+biologist|biólogo
+biology|biología
+botanical|botánico
+botanist|botánico
+botany|botánica
+chemical|químico
+chemist|químico
+chemistry|química
+clone|clon
+discovery|descubrimiento
+drugs|medicamento
+experiment|experimento
+genetic|genético
+geneticist|genetista
+genetics|genética
+guinea pig|cobaya
+laboratory|laboratorio
+physical|físico
+physicist|físico
+physics|física
+research|investigación
+science|ciencia
+scientific|científico
+side effect|efecto secundario
+wait and see|espera y verás`}
+];
+
+/* Extra words on the same topics. They only appear once the official words of a unit have all been played. */
+var EXTRA = {
+1:`reliable|fiable
+stubborn|terco
+shy|tímido
+bossy|mandón
+cheerful|alegre
+moody|de humor cambiante
+sensible|sensato
+ambitious|ambicioso
+generous|generoso
+mean|tacaño
+outgoing|extrovertido
+hard-working|trabajador
+lazy|vago
+polite|educado
+rude|maleducado
+trustworthy|digno de confianza
+level-headed|con la cabeza fría
+sense of humour|sentido del humor
+get on well with|llevarse bien con
+fall out with|enemistarse con
+look up to|admirar
+deadline|fecha límite
+overtime|horas extra
+salary|sueldo
+colleague|compañero de trabajo
+flexible working hours|horario flexible
+burnout|agotamiento laboral
+promotion|ascenso
+work from home|trabajar desde casa`,
+2:`ambulance|ambulancia
+bruise|moratón
+painkiller|analgésico
+infection|infección
+cast|escayola
+stitches|puntos de sutura
+hoodie|sudadera con capucha
+belt|cinturón
+sweater|jersey
+ripped|rasgado
+baggy|ancho`,
+3:`passport control|control de pasaportes
+overbooked|con exceso de reservas
+stopover|escala
+window seat|asiento de ventanilla
+visa|visado
+luggage allowance|franquicia de equipaje
+meanwhile|mientras tanto
+otherwise|de lo contrario
+nevertheless|sin embargo`,
+5:`anxious|ansioso
+jealous|celoso
+embarrassed|avergonzado
+nervous|nervioso
+furious|furioso
+irritated|irritado
+content|contento
+reluctant|reacio
+ashamed|apenado
+overjoyed|rebosante de alegría
+heartbroken|con el corazón roto
+on edge|con los nervios de punta
+over the moon|en la gloria
+pleased|complacido
+stressed out|estresado
+mixed feelings|sentimientos encontrados
+cheer up|animarse
+calm down|calmarse`,
+6:`trumpet|trompeta
+guitarist|guitarrista
+lullaby|nana
+snooze|echar una cabezada
+doze off|quedarse medio dormido
+wide awake|completamente despierto`,
+7:`shoulder|hombro
+thumb|pulgar
+index finger|dedo índice
+spine|columna vertebral
+skull|cráneo
+jaw|mandíbula
+tongue|lengua
+throat|garganta
+stomach|estómago
+muscle|músculo
+bone|hueso
+skin|piel
+blush|sonrojarse
+nod|asentir con la cabeza
+tiptoe|andar de puntillas
+crawl|gatear
+bend down|agacharse
+rub|frotar
+giggle|reírse tontamente
+sigh|suspirar`,
+8:`headline|titular
+broadcast|retransmitir
+press|prensa
+tabloid|periódico sensacionalista
+gossip|cotilleo
+fake news|noticias falsas
+subscribe|suscribirse
+censorship|censura
+shoplifting|hurto en tiendas
+fine|multa
+prison|prisión
+victim|víctima
+suspect|sospechoso
+trial|juicio
+lawyer|abogado
+break the law|infringir la ley
+get away with|salirse con la suya
+plead guilty|declararse culpable`,
+9:`turnover|facturación
+shareholder|accionista
+CEO|director ejecutivo
+start-up|empresa emergente
+customer|cliente
+supplier|proveedor
+retail|venta al por menor
+wholesale|venta al por mayor
+invest|invertir
+budget|presupuesto
+competitor|competidor
+market share|cuota de mercado
+bankrupt|en quiebra
+negotiate|negociar
+target audience|público objetivo
+workforce|plantilla
+sales figures|cifras de ventas
+bargain|ganga
+cut costs|reducir costes
+sustainable|sostenible
+happiness|felicidad
+sadness|tristeza
+freedom|libertad
+friendship|amistad`,
+10:`trial and error|ensayo y error
+give and take|ceder un poco cada uno
+odds and ends|cosas sueltas
+ups and downs|altibajos
+black and white|blanco y negro
+hit and miss|con resultados irregulares
+spick and span|limpio y ordenado
+hypothesis|hipótesis
+microscope|microscopio
+gravity|gravedad
+molecule|molécula
+breakthrough|avance importante
+vaccine|vacuna
+fossil|fósil
+renewable energy|energía renovable
+climate change|cambio climático
+cure|cura`
+};
+
+/*@@SENT@@*/
+var SENT = {"1": {"foolproof": "The instructions were so clear that the recipe seemed completely foolproof.", "geek": "My brother is a computer geek who spends his weekends building robots.", "good-natured rivalry": "There is a lot of good-natured rivalry between the two neighbouring schools.", "gut feeling": "I had a gut feeling that something was wrong, so I called her straight away.", "job-seeker": "The centre offers free training to every job-seeker in the area.", "light-hearted response": "She gave a light-hearted response to the criticism and everyone laughed.", "the point of": "What is the point of studying all night if you can't remember anything?", "work–life balance": "A good work–life balance helps you avoid stress and stay healthy.", "absent-minded": "He is so absent-minded that he often leaves his keys in the fridge.", "bad-tempered": "My grandfather gets bad-tempered when he is hungry.", "big-headed": "Don't be so big-headed; you only won because you were lucky.", "easy-going": "Our teacher is very easy-going and never gets angry about small things.", "good-tempered": "The baby is always good-tempered, even when she is tired.", "laid-back": "He is a laid-back guy who never worries about deadlines.", "narrow-minded": "It is narrow-minded to judge people before you get to know them.", "open-minded": "You should be open-minded and listen to other people's opinions.", "self-centred": "She is so self-centred that she never asks about anyone else's day.", "strong-willed": "My daughter is strong-willed and always insists on doing things her own way.", "tight-fisted": "He is too tight-fisted to leave a tip, even in a nice restaurant.", "two-faced": "I don't trust her; she is two-faced and says nasty things behind your back.", "well-balanced": "A well-balanced diet includes plenty of fruit, vegetables and protein.", "well-behaved": "The children were so well-behaved that the waiter praised them.", "reliable": "Our new assistant is very reliable and always finishes her work on time.", "stubborn": "My father is too stubborn to admit that he made a mistake.", "shy": "He was too shy to ask the teacher a question in front of the class.", "bossy": "She is a bit bossy and likes telling everybody what to do.", "cheerful": "The cheerful receptionist greeted every visitor with a big smile.", "moody": "Teenagers can be moody, happy one minute and angry the next.", "sensible": "It would be sensible to check the weather forecast before we leave.", "ambitious": "He is an ambitious young lawyer who wants to become a judge.", "generous": "My aunt is very generous and always brings expensive presents.", "mean": "It was mean of him to laugh at her accent.", "outgoing": "She is an outgoing person who makes friends wherever she goes.", "hard-working": "The hard-working students revised every evening for the exam.", "lazy": "He is too lazy to wash the dishes, so they pile up in the sink.", "polite": "It is polite to say thank you when someone holds the door for you.", "rude": "It is rude to talk with your mouth full.", "trustworthy": "You can tell her a secret; she is completely trustworthy.", "level-headed": "She stayed level-headed during the emergency and called an ambulance.", "sense of humour": "A good sense of humour can make a boring meeting much more enjoyable.", "get on well with": "I get on well with my colleagues, so going to work is a pleasure.", "fall out with": "He fell out with his best friend over a silly argument about money.", "look up to": "Many young people look up to athletes who work hard and stay humble.", "deadline": "We have to finish the report by the deadline on Friday.", "overtime": "She did three hours of overtime last night to finish the project.", "salary": "He asked for a higher salary after two years in the company.", "colleague": "One of my colleagues is leaving the company next month.", "flexible working hours": "Flexible working hours let parents drop their children off at school.", "burnout": "Working sixty hours a week for years led to complete burnout.", "promotion": "After five years she finally got a promotion and her own office.", "work from home": "Many people now prefer to work from home two days a week."}, "10": {"health and safety": "Every new employee gets a training session on health and safety.", "forgive and forget": "After the argument, they decided to forgive and forget.", "dead or alive": "The poster said the outlaw was wanted dead or alive.", "cause and effect": "The report explains the cause and effect of climate change.", "by and large": "By and large, the students enjoyed the course.", "zoology": "She studied zoology because she loves animals.", "backwards and forwards": "The children ran backwards and forwards across the garden.", "all or nothing": "It's all or nothing for the team in the final.", "zoological": "The zoological park has more than two hundred species of animals.", "zoologist": "The zoologist spent two years studying monkeys in Africa.", "law and order": "The new mayor promised to bring law and order to the city centre.", "bits and pieces": "I packed a few bits and pieces and went to the station.", "live and learn": "I forgot my umbrella again; well, you live and learn.", "sooner or later": "Sooner or later you will have to tell him the truth.", "now and again": "We go to the cinema now and again, but not every week.", "now or never": "It's now or never; this is our only chance to win.", "once or twice": "I've only been to that restaurant once or twice.", "peace and quiet": "After a busy week, I just want some peace and quiet.", "pros and cons": "Let's think about the pros and cons before we decide.", "rain or shine": "The market is open every Sunday, rain or shine.", "right or wrong": "Right or wrong, you have to accept the decision.", "safe and sound": "We arrived home safe and sound after the storm.", "short and sweet": "The speech was short and sweet, and everyone was happy.", "sick and tired": "I'm sick and tired of this noise.", "supply and demand": "Prices depend on supply and demand.", "thunder and lightning": "We watched thunder and lightning over the sea from the balcony.", "theory": "Einstein's theory of relativity changed physics.", "more or less": "The work is more or less finished, so you can relax.", "test": "The doctors will test the new medicine on a small group of patients.", "biological": "The biological clock affects our sleep patterns.", "scientist": "The scientist presented her results at an international conference.", "touch and go": "It was touch and go whether we would catch the train.", "astronomer": "The astronomer discovered a new planet with a powerful telescope.", "astronomical": "The price of the flat was astronomical, so we didn't buy it.", "astronomy": "He loves astronomy and spends his nights looking at the stars.", "biologist": "The biologist studies the way plants grow.", "biology": "We have a biology exam on Friday.", "botanical": "The botanical garden has plants from all over the world.", "botanist": "The botanist found a rare flower on the mountain.", "botany": "She is studying botany at university.", "chemical": "The factory released a dangerous chemical into the river.", "chemist": "The chemist mixed two liquids and a gas appeared.", "chemistry": "We did an experiment in chemistry class today.", "clone": "Scientists created a clone of a sheep in 1996.", "discovery": "The discovery of penicillin saved millions of lives.", "drugs": "Doctors are testing new drugs to fight the disease.", "experiment": "The students did an experiment to show how plants grow.", "genetic": "Some genetic diseases are passed from parents to children.", "geneticist": "The geneticist studies how families pass on certain illnesses.", "genetics": "Genetics explains why you look like your parents.", "guinea pig": "I'm not going to be the guinea pig for your new recipe.", "laboratory": "The laboratory is full of expensive equipment.", "physical": "Physical exercise is important for your health.", "physicist": "The physicist won a prize for her work on light.", "physics": "She is good at physics and plans to study engineering.", "research": "Their research shows that sleep improves memory.", "science": "He teaches science at a secondary school.", "scientific": "The article was based on solid scientific evidence.", "side effect": "One side effect of the medicine is that it makes you sleepy.", "wait and see": "I don't know what will happen; we'll have to wait and see.", "trial and error": "He learned to cook by trial and error.", "give and take": "A good marriage needs a lot of give and take.", "odds and ends": "The drawer was full of odds and ends: batteries, keys and old coins.", "ups and downs": "Every relationship has its ups and downs.", "black and white": "The film was shot in black and white.", "hit and miss": "Cheap restaurants can be hit and miss, so read the reviews.", "spick and span": "She cleaned the flat until it was spick and span.", "hypothesis": "The scientist tested her hypothesis with a simple experiment.", "microscope": "You can see tiny cells under the microscope.", "gravity": "Gravity keeps us on the ground.", "molecule": "A water molecule has two hydrogen atoms and one oxygen atom.", "breakthrough": "Scientists have made a breakthrough in the fight against cancer.", "vaccine": "The new vaccine protects people from the virus.", "fossil": "They found a fossil of a giant fish in the rock.", "renewable energy": "Solar power is a form of renewable energy.", "climate change": "Climate change is making summers hotter and drier.", "cure": "Researchers are still looking for a cure for the disease."}, "2": {"allergic reaction": "He had a serious allergic reaction after eating a peanut.", "be sick": "I felt dizzy on the boat and then I was sick over the side.", "bleed": "The cut was deep and it started to bleed a lot.", "blister": "My new shoes gave me a painful blister on my heel.", "(high/low) blood pressure": "The doctor said I have high blood pressure and should eat less salt.", "burn": "Be careful with the oven; you could burn your hand.", "choke": "He nearly began to choke on a fish bone at dinner.", "cold": "I've caught a cold, so my nose is blocked and I keep sneezing.", "come round": "She fainted, but she came round after a minute.", "cough": "The cough was so bad that he couldn't sleep all night.", "cut": "I cut my finger while I was chopping onions.", "diarrhoea": "The tourists got diarrhoea after drinking the local water.", "dizzy": "I felt dizzy when I stood up too quickly.", "earache": "The little boy cried all night because of an earache.", "faint": "It was so hot in the church that two people fainted.", "feel sick": "I always feel sick when I read in the car.", "flu": "Half of the office is off work with the flu.", "food poisoning": "We got food poisoning from some seafood at the beach bar.", "get over": "It took me a month to get over the flu.", "headache": "I have a terrible headache; I need to lie down.", "hurt": "My back hurts when I sit for too long.", "lie down": "Why don't you lie down for a while? You look exhausted.", "pass out": "He nearly passed out when he saw the blood.", "rash": "The new soap gave her a red rash on her arms.", "sore throat": "I have a sore throat, so I can hardly talk.", "sprain": "She slipped on the ice and sprained her ankle.", "stomach ache": "Too many sweets gave the children a stomach ache.", "sunburn": "I forgot my sun cream and got a terrible sunburn on my shoulders.", "swell": "After the insect bite, her hand began to swell.", "temperature": "The nurse checked his temperature and told him to stay in bed.", "throw up": "The baby threw up all over my shirt.", "toothache": "I have such a bad toothache that I need to see the dentist.", "unconscious": "The driver was unconscious when the ambulance arrived.", "vomit": "If you start to vomit, you must drink plenty of water.", "casual": "You can wear casual clothes to the party; jeans are fine.", "checked": "He was wearing a blue and white checked shirt.", "classic": "She always wears a classic black dress to formal dinners.", "cotton vest": "In summer I sleep in a light cotton vest.", "denim waistcoat": "He wore a denim waistcoat over a white T-shirt.", "dress up": "We love to dress up in costumes at Halloween.", "fit": "These trousers fit perfectly; they're not too long or too short.", "fur collar": "Her winter coat has a soft fur collar.", "get changed": "I'll get changed and then we can go out for dinner.", "get dressed": "Hurry up and get dressed or we'll miss the bus.", "get undressed": "The doctor asked him to get undressed and put on a gown.", "go with": "Do you think this scarf goes with my green coat?", "hang up": "Please hang up your jacket instead of leaving it on the floor.", "hooded": "It was raining, so she put on a hooded jacket.", "lace top": "She wore a white lace top with a long black skirt.", "leather sandals": "In summer he walks everywhere in his old leather sandals.", "linen suit": "He looked cool and elegant in a light linen suit.", "long-sleeved": "Wear a long-sleeved shirt to protect your arms from the sun.", "loose": "I prefer loose trousers because they are comfortable on long flights.", "lycra swimsuit": "The swimmers wore a tight lycra swimsuit to move faster in the water.", "match": "Your socks don't match; one is blue and the other is green.", "old-fashioned": "My grandmother still wears old-fashioned hats to church.", "patterned": "The room has plain walls and a bright patterned carpet.", "plain": "I like plain T-shirts because they go with everything.", "scruffy": "The musician looked scruffy, with messy hair and an old coat.", "silk scarf": "She tied a beautiful silk scarf around her neck.", "sleeveless": "It's so hot that I'm going to wear a sleeveless top.", "smart": "You should wear something smart to the job interview.", "spotted": "She wore a spotted dress with white dots on a red background.", "striped": "The sailors wore blue and white striped shirts.", "suede boots": "Suede boots look great, but they get ruined in the rain.", "suit": "That colour really suits you; it matches your eyes.", "tight": "These jeans are too tight; I can hardly sit down.", "velvet bow tie": "He wore a red velvet bow tie to the wedding.", "v-neck": "He wore a grey V-neck sweater with a white shirt underneath.", "woollen cardigan": "Take a woollen cardigan with you; the evenings are cold.", "ambulance": "Someone called an ambulance as soon as the accident happened.", "bruise": "I fell off my bike and now I have a big bruise on my knee.", "painkiller": "I took a painkiller for my headache, and it worked.", "infection": "The wound got an infection because it wasn't cleaned properly.", "cast": "He broke his arm and had to wear a cast for six weeks.", "stitches": "She needed five stitches after cutting her hand on some glass.", "hoodie": "He put on his hoodie because it was getting cold.", "belt": "You need a belt to keep those trousers up.", "sweater": "She knitted me a warm sweater for Christmas.", "ripped": "He wore ripped jeans with holes in the knees.", "baggy": "I love baggy jumpers because they are so comfortable."}, "3": {"airport terminal": "The airport terminal was crowded with families going on holiday.", "aisle": "I prefer an aisle seat so I can stretch my legs.", "baggage drop": "You can leave your suitcase at the baggage drop and then go through security.", "baggage reclaim": "We waited forty minutes at baggage reclaim for our suitcases.", "board": "Passengers must board the plane at least twenty minutes before take-off.", "boarding pass": "Please have your boarding pass and passport ready.", "business class": "He always flies business class because the seats are wider.", "cabin crew": "The cabin crew served drinks soon after take-off.", "check": "Security staff will check your bags before you enter the departure area.", "check in": "You can check in online to save time at the airport.", "check-in desk": "There was a long queue at the check-in desk.", "closed": "The gate is closed, so we can't board the plane.", "collect": "Remember to collect your luggage from the carousel.", "connecting flight": "We missed our connecting flight in Frankfurt because the first one was late.", "customs": "At customs they asked if I had anything to declare.", "delayed": "Our flight was delayed for three hours because of fog.", "departures board": "Check the departures board to see which gate your flight leaves from.", "direct flight": "There is a direct flight from Madrid to New York every day.", "drop off": "Can you drop me off at the airport before you go to work?", "first class": "The first-class passengers get a bed and a three-course meal.", "flight time": "The flight time to London is about two hours.", "fill in": "Please fill in this form before you arrive at the border.", "gate": "Your flight leaves from gate twelve, so please go there now.", "get off": "We need to get off the plane through the rear door.", "get on": "Passengers with young children can get on the plane first.", "hand luggage": "You may only take one piece of hand luggage on board.", "illegal goods": "It is a crime to carry illegal goods across the border.", "jet lag": "I had terrible jet lag after flying from Tokyo and woke up at 3 a.m.", "journey": "The journey to the island takes about six hours by ferry.", "land": "We will land in Barcelona in about ten minutes.", "liquid": "You can't take more than 100 ml of any liquid in your hand luggage.", "long-haul flight": "A long-haul flight to Australia can take more than twenty hours.", "lounge": "While we waited, we relaxed in the airline lounge with a coffee.", "luggage": "I always pack my luggage the night before I travel.", "on time": "Our train arrived on time, which was a pleasant surprise.", "pick up": "My cousin will pick me up at the airport on Saturday.", "row": "We sat in the last row, right next to the toilets.", "runway": "The plane sped down the runway and lifted off the ground.", "scan": "They scan every suitcase for dangerous items.", "seat belt": "Please fasten your seat belt and keep it fastened during the flight.", "security": "You have to go through security and take off your belt and shoes.", "sharp object": "You are not allowed to carry any sharp object in your hand luggage.", "take off": "The plane will take off in a few minutes.", "travel": "I love to travel and learn about different cultures.", "trip": "We are planning a trip to Italy this summer.", "trolley": "Could you pass me a trolley? My suitcases are really heavy.", "turbulence": "There was a lot of turbulence, and some passengers felt sick.", "actually": "I thought it would be expensive, but it was actually quite cheap.", "apparently": "Apparently, the flight has been cancelled because of the storm.", "at the end": "At the end of the film, everybody started to clap.", "at the moment": "I can't talk at the moment because I'm driving.", "basically": "Basically, you just have to press this button and wait.", "certainly": "It will certainly rain tomorrow; look at those clouds.", "especially": "I love fruit, especially strawberries.", "even": "He didn't even say hello when he came into the room.", "eventually": "After hours of waiting, the train eventually arrived.", "ever": "Have you ever been to a music festival?", "gradually": "The weather gradually improved during the afternoon.", "hard": "She works really hard and rarely takes a day off.", "hardly": "I could hardly hear the speaker at the back of the room.", "ideally": "Ideally, we would leave before six so we avoid the traffic.", "in fact": "I thought he was Spanish, but in fact he is from Mexico.", "in the end": "We argued about the route, but in the end we took the motorway.", "late": "I'm sorry I'm late; the bus broke down.", "lately": "I've been feeling very tired lately.", "near": "Is there a bank near here?", "nearly": "I nearly missed my flight because I was stuck in traffic.", "obviously": "Obviously, you must bring your passport if you want to travel abroad.", "specially": "I made this cake specially for your birthday.", "still": "It's midnight and she is still working.", "yet": "Have you finished your homework yet?", "passport control": "There was a long queue at passport control.", "overbooked": "The flight was overbooked, so some passengers had to take the next one.", "stopover": "We had a six-hour stopover in Dubai on the way to Sydney.", "window seat": "I always ask for a window seat so I can look at the clouds.", "visa": "You need a visa to travel to some countries.", "luggage allowance": "The luggage allowance is twenty kilos for each passenger.", "meanwhile": "I will cook dinner. Meanwhile, you can set the table.", "otherwise": "Leave now, otherwise you will miss the last train.", "nevertheless": "It was raining; nevertheless, we decided to go for a walk."}, "4": {"below zero": "Last night the temperature dropped to five degrees below zero.", "blizzard": "The blizzard closed the road and we were stuck at home for two days.", "boiling": "It's boiling today; I can't stop sweating.", "breeze": "A cool breeze came from the sea and made the afternoon pleasant.", "bright": "It was a bright, sunny morning with not a cloud in the sky.", "changeable": "The weather in the mountains is very changeable, so bring a coat.", "chilly": "It gets chilly in the evenings, so take a jumper.", "clear": "The sky was clear, so we could see thousands of stars.", "cool": "It's a bit cool today, but it's not cold enough for a coat.", "damp": "The house was damp and smelled of wet clothes.", "drizzle": "It didn't really rain; it was just a light drizzle.", "drought": "The long drought destroyed most of the farmers' crops.", "flood": "The flood covered the whole valley and many people lost their homes.", "fog": "Thick fog made driving on the motorway very dangerous.", "freezing": "It was freezing outside, and the lake was covered in ice.", "hail": "The hail was so heavy that it damaged the cars.", "heatwave": "During the heatwave, temperatures stayed above forty degrees for a week.", "heavy": "There will be heavy rain in the north this evening.", "humid": "The air is so humid in the jungle that your clothes never dry.", "hurricane": "The hurricane destroyed hundreds of houses along the coast.", "icy": "The roads are icy, so drive carefully.", "lightning": "Lightning struck a tree in the middle of the field.", "mild": "We've had a very mild winter, with almost no snow.", "mist": "Early morning mist covered the fields.", "monsoon": "The monsoon brings heavy rain to India every summer.", "pour (with rain)": "It was pouring with rain, so we cancelled the picnic.", "settled": "The forecast says the weather will be settled for the whole weekend.", "shower": "We got caught in a sudden shower on our way home.", "smog": "Smog covers the city on windless days.", "strong": "A strong wind blew down several trees.", "sunny": "It's a lovely sunny day, so let's have lunch in the garden.", "thick": "The fog was so thick that I could hardly see the car in front of me.", "thunder": "The thunder was so loud that the dog hid under the bed.", "warm": "It's a warm evening, so we can eat outside.", "take advantage of": "You should take advantage of the good weather and go to the beach.", "take after": "She takes after her mother; they both love painting.", "take against": "For some reason, my boss took against me from the very first day.", "take care of": "Who will take care of the children while you are away?", "take into account": "You must take into account the traffic when you plan your journey.", "take no notice of": "Take no notice of him; he's just trying to annoy you.", "take off": "The plane took off ten minutes late because of the fog.", "take (sth) off": "Take your coat off and make yourself at home.", "take (sth) out": "He took the rubbish out before going to bed.", "take part in": "Over a thousand people took part in the marathon.", "take pity on": "The shop owner took pity on the boy and gave him some bread.", "take place": "The concert will take place in the main square on Saturday.", "take risks": "You have to take risks if you want to start your own business.", "take (your) time": "There's no rush, so take your time and think carefully.", "take to": "The children took to their new teacher immediately.", "take up": "She took up painting after she retired."}, "5": {"astonished": "We were astonished when she told us she had won the lottery.", "bewildered": "The tourists looked bewildered by all the signs in the station.", "delighted": "I'm delighted to hear that you passed the exam.", "desperate": "He was desperate for a job, so he accepted the first offer.", "devastated": "She was devastated when her best friend moved to another country.", "disappointed": "I was disappointed with the film; the ending was predictable.", "down": "I've been feeling a bit down since the holidays ended.", "fed up": "I'm fed up with waiting; this bus is always late.", "gobsmacked": "When he told me the price, I was absolutely gobsmacked.", "grateful": "I'm very grateful for all your help with the move.", "gutted": "He was gutted when his team lost in the final minute.", "homesick": "After two weeks abroad, she started to feel homesick.", "horrified": "They were horrified to see the state of the kitchen.", "lonely": "Many old people feel lonely when they live on their own.", "miserable": "It rained all week and we were all miserable.", "offended": "She was offended by his comment about her cooking.", "overwhelmed": "I felt overwhelmed by the amount of work I had to do.", "proud": "My parents were proud of me when I graduated.", "relieved": "I was so relieved when I found my passport in the bag.", "scared stiff": "I was scared stiff when I heard a noise downstairs at night.", "shattered": "After the long flight I was completely shattered.", "sick of": "I'm sick of eating the same thing every day.", "stunned": "He was stunned by the news and couldn't say a word.", "thrilled": "She was thrilled to be offered a place at university.", "upset": "He was upset because nobody remembered his birthday.", "amaze": "Her talent never fails to amaze me.", "confuse": "The instructions confuse me; I don't know where to start.", "disappoint": "I don't want to disappoint my parents.", "embarrass": "Please don't embarrass me in front of my friends.", "exhaust": "We were all exhausted after the long climb.", "frustrate": "It frustrates me when people don't listen to me.", "infuriate": "His rude attitude infuriates the teachers.", "inspire": "Her speech inspired young people to follow their dreams.", "terrify": "Spiders terrify my little sister.", "thrill": "It thrills me to see my students make progress.", "anxious": "She felt anxious before the job interview.", "jealous": "He was jealous of his brother's success.", "embarrassed": "I felt embarrassed when I forgot his name.", "nervous": "I always get nervous before an exam.", "furious": "She was furious when she saw the dent in her car.", "irritated": "He was irritated by the constant noise from the street.", "content": "The cat looked content, lying in the sun.", "reluctant": "He was reluctant to talk about his past.", "ashamed": "She felt ashamed of the way she had behaved at the party.", "overjoyed": "They were overjoyed when their baby was born.", "heartbroken": "He was heartbroken when his dog died.", "on edge": "I've been on edge all day waiting for the results.", "over the moon": "She was over the moon about her promotion.", "pleased": "I'm pleased to meet you.", "stressed out": "I'm so stressed out about the exams that I can't sleep.", "mixed feelings": "I have mixed feelings about moving abroad.", "cheer up": "Cheer up! Things will get better soon.", "calm down": "Calm down and tell me exactly what happened."}, "6": {"be a light sleeper": "I'm a light sleeper, so the smallest noise wakes me up.", "chorus": "Everyone sang along to the chorus of the song.", "concerto": "The pianist played a Mozart concerto with the orchestra.", "conductor": "The conductor raised his hands and the music began.", "drum": "The drum set the rhythm for the whole band.", "encore": "The audience clapped and shouted for an encore.", "fiancé": "She introduced her fiancé to her parents last weekend.", "flute": "She learned to play the flute when she was ten.", "genre": "My favourite music genre is jazz.", "graffiti": "The walls under the bridge were covered in colourful graffiti.", "hypochondriac": "He is such a hypochondriac that he visits the doctor every time he sneezes.", "keyboard": "He plays the keyboard in a rock band.", "microphone": "The singer tapped the microphone before the concert started.", "orchestra": "The orchestra has more than eighty musicians.", "philosophy": "She studied philosophy at university and loves discussing big ideas.", "psychologist": "The psychologist helped the family to communicate better.", "rhythm": "I love dancing to music with a strong rhythm.", "saxophone": "He plays the saxophone in a jazz club on Fridays.", "symphony": "We went to hear Beethoven's Fifth Symphony last night.", "villa": "They rented a villa with a pool in the south of France.", "violin": "She has played the violin since she was five.", "choir": "My daughter sings in the school choir.", "chic": "She looked very chic in her simple black dress.", "psychic": "The psychic claimed she could see the future in a crystal ball.", "chauffeur": "The millionaire arrived at the party with his own chauffeur.", "be fast asleep": "The baby was fast asleep in her cot.", "blanket": "Take a blanket with you; it will be cold on the terrace.", "duvet": "In winter I sleep under a thick duvet.", "fall asleep": "I always fall asleep on the sofa when I watch a film.", "insomnia": "He suffers from insomnia and often stays awake until dawn.", "keep you awake": "Drinking coffee late in the evening can keep you awake all night.", "nap": "The children take a short nap after lunch.", "oversleep": "I overslept and missed the first lesson.", "pillow": "I need a soft pillow to sleep well.", "set the alarm": "Don't forget to set the alarm for six o'clock.", "sheet": "She changed the sheets on the bed this morning.", "have nightmares": "He has nightmares every time he watches a horror film.", "sleep like a log": "After the long hike, I slept like a log.", "sleeping pill": "The doctor didn't want to give her a sleeping pill.", "cappuccino": "I'd like a cappuccino and a slice of cake, please.", "bouquet": "He gave her a beautiful bouquet of roses.", "cello": "The cello has a deep, warm sound.", "bass guitar": "The bass guitar gives the song its heavy sound.", "yawn": "I couldn't stop yawning during the long meeting.", "snore": "My husband snores so loudly that I can't sleep.", "sleepy": "I feel sleepy after a big meal.", "sleepwalk": "Her brother used to sleepwalk and once ended up in the garden.", "architecture": "The city is famous for its beautiful modern architecture.", "trumpet": "He plays the trumpet in a jazz band.", "guitarist": "The guitarist played a fantastic solo.", "lullaby": "She sang a lullaby to help the baby fall asleep.", "snooze": "I pressed the snooze button three times this morning.", "doze off": "I dozed off on the train and nearly missed my stop.", "wide awake": "At 3 a.m. I was still wide awake, thinking about the exam."}, "7": {"lips": "She put some lipstick on her lips before the party.", "liver": "Drinking too much alcohol can damage your liver.", "kneel": "He knelt down to tie the little boy's shoelaces.", "knee": "I fell and hurt my knee while playing football.", "kidneys": "The kidneys clean the blood and produce urine.", "hug": "She gave her grandmother a big hug at the station.", "hold someone's hand": "The little girl held her mother's hand when they crossed the street.", "hip": "The old man broke his hip when he slipped on the stairs.", "fist": "He banged his fist on the table and shouted.", "heart": "My heart was beating fast before the exam.", "frown": "She frowned when she read the strange message.", "forehead": "He wiped the sweat from his forehead.", "fold your arms": "He folded his arms and refused to listen.", "eyelid": "Her eyelids were heavy because she was so sleepy.", "eyelash": "I got an eyelash in my eye and it hurt.", "lungs": "Smoking is very bad for your lungs.", "eyebrow": "He raised an eyebrow when he heard the excuse.", "heel": "She hurt her heel when she jumped off the wall.", "nails": "She painted her nails red for the party.", "touch your toes": "I can't touch my toes without bending my knees.", "palm": "She held the small bird gently in the palm of her hand.", "eye": "He has a problem with his left eye and needs glasses.", "wrist": "He wore a silver watch on his left wrist.", "wrinkles": "My grandfather has deep wrinkles around his eyes from smiling.", "wink": "He gave me a wink to show that he was joking.", "wave": "She waved goodbye from the train window.", "waist": "The belt fits tightly around her waist.", "thigh": "The runner pulled a muscle in his thigh.", "neck": "He wore a silk scarf around his neck.", "suck your thumb": "The toddler still sucks his thumb when he is tired.", "stretch": "You should stretch before you go for a run.", "stare": "It's rude to stare at people on the bus.", "shrug your shoulders": "When I asked him why, he just shrugged his shoulders.", "shake your head": "She shook her head to say no.", "shake hands": "The two leaders shook hands before the meeting.", "scratch": "My dog scratches the door when he wants to go out.", "raise your eyebrows": "He raised his eyebrows in surprise.", "point": "It's rude to point at people.", "stubble": "He didn't shave, so he had stubble on his chin.", "elbow": "She hit her elbow on the door and it really hurt.", "wish": "I wish I had more free time.", "chin": "He rested his chin on his hand and listened.", "raise": "If you have a question, raise your hand.", "prevent": "A good diet can help prevent heart disease.", "notice": "I didn't notice that she had cut her hair.", "mind": "Do you mind if I open the window?", "matter": "It doesn't matter if you are late; we'll wait for you.", "lie (past lay)": "I like to lie on the beach and read a book.", "lend": "Can you lend me your pen for a minute?", "lay (past laid)": "Please lay the table before the guests arrive.", "hope": "I hope you have a wonderful holiday.", "expect": "I expect that the train will be late again.", "discuss": "We need to discuss the problem before we make a decision.", "comb your hair": "He combed his hair carefully before the interview.", "borrow": "Can I borrow your umbrella? It's raining.", "beat": "Our team beat the champions three to one.", "avoid": "You should avoid eating too much sugar.", "argue": "They argue about everything, from politics to the weather.", "advise": "The doctor advised him to rest for a week.", "realize": "I suddenly realized that I had left my wallet at home.", "refuse": "She refused to answer any questions.", "deny": "He denied breaking the window, but everyone knew the truth.", "remind": "Please remind me to call my mother tonight.", "remember": "I remember my first day at school very well.", "chew": "Chew your food slowly; it helps digestion.", "chest": "He felt a sharp pain in his chest and went to hospital.", "calf": "After the long walk, my calf muscles were sore.", "brush your teeth": "You should brush your teeth twice a day.", "brush your hair": "She brushed her hair in front of the mirror.", "brain": "The brain controls everything we do.", "bottom": "The baby fell on her bottom and started to cry.", "blow your nose": "He blew his nose because he had a cold.", "cheek": "She kissed her grandmother on the cheek.", "ankle": "I twisted my ankle while I was running downstairs.", "win": "We hope to win the match tomorrow.", "warn": "The sign warns drivers about the ice on the road.", "wait": "Wait here until I come back.", "steal": "Someone stole my bike from outside the shop.", "rob": "Two men tried to rob the bank last night.", "bite your nails": "He bites his nails when he is nervous.", "rise": "The sun rises at seven o'clock in winter.", "shoulder": "My shoulder hurts after carrying that heavy bag.", "thumb": "He hurt his thumb with the hammer.", "index finger": "She pointed at the map with her index finger.", "spine": "You should keep your spine straight when you sit.", "skull": "The helmet protects your skull in a fall.", "jaw": "He broke his jaw in a bike accident.", "tongue": "I burned my tongue on the hot soup.", "throat": "She has a sore throat and a cough.", "stomach": "I can't run on a full stomach.", "muscle": "He goes to the gym to build muscle.", "bone": "The dog buried a bone in the garden.", "skin": "Use sun cream to protect your skin.", "blush": "She blushed when he praised her work.", "nod": "He nodded to show that he agreed.", "tiptoe": "We tiptoed into the room so we wouldn't wake the baby.", "crawl": "The baby can crawl but can't walk yet.", "bend down": "He bent down to pick up the keys.", "rub": "She rubbed her hands together to keep warm.", "giggle": "The girls giggled when the teacher dropped his book.", "sigh": "He sighed and closed the book.", "yawn": "I couldn't stop yawning during the long meeting."}, "8": {"critic": "The critic wrote that the film was too long and rather boring.", "clash": "The two politicians clashed over the new tax on fuel.", "censored": "The film was censored, and several violent scenes were cut.", "bid": "The company made a bid to take over its main competitor.", "biased": "The article was biased because it only showed one side of the story.", "back": "The newspaper decided to back the mayor's plan for the new park.", "accurate": "The report was accurate and based on real figures.", "agony aunt": "She wrote to the agony aunt for advice about her family problems.", "witness": "A witness saw the thief running away from the shop.", "verdict": "The jury reached a verdict after two days of discussion.", "editor": "The editor decided to put the story on the front page.", "vandalism": "The park was closed because of repeated acts of vandalism.", "axe": "The company plans to axe two hundred jobs next year.", "freelance journalist": "She works as a freelance journalist for several magazines.", "row": "The couple had a row about money and didn't speak for a day.", "newsreader": "The newsreader looked serious as she announced the bad news.", "objective": "A good reporter should be objective and not take sides.", "presenter": "The TV presenter interviewed the actor about his new film.", "quit": "He quit his job as a teacher to become a writer.", "quiz": "The police quizzed the suspect for several hours.", "reporter": "The reporter asked the minister some difficult questions.", "sensational": "The paper printed a sensational story about a famous singer.", "split": "The singer and her husband split up after ten years.", "tip": "Many experts tip her to win the gold medal.", "vow": "He vowed to find the people who had burgled his house.", "wed": "The couple wed in a small village church.", "theft": "He was arrested for the theft of three cars.", "hit": "The economic crisis hit small businesses very hard.", "terrorism": "The government is spending more money to fight terrorism.", "commentator": "The football commentator got excited when the team scored.", "smuggling": "He was arrested for smuggling cigarettes across the border.", "stalking": "Stalking is a crime in most countries.", "accuse": "They accused the manager of stealing money from the company.", "acquit": "The jury acquitted her because there was not enough evidence.", "arrest": "The police arrested two men outside the bank.", "bribery": "The politician was accused of bribery.", "burglary": "There was a burglary in our street last night.", "catch": "The police caught the thief a few hours later.", "charge": "He was charged with fraud and appeared in court on Monday.", "commit": "The man has never committed a crime in his life.", "court": "The case will be heard in court next month.", "drug dealing": "He went to prison for drug dealing.", "evidence": "There was no evidence to prove that he was guilty.", "fraud": "She was sent to prison for tax fraud.", "guilty": "The jury found him guilty of the robbery.", "hacking": "Computer hacking has become a serious problem for banks.", "blackmail": "He tried to blackmail her by threatening to publish the photos.", "innocent": "The man claimed he was innocent and wanted a new trial.", "hijacking": "The hijacking of the plane lasted twelve hours.", "robbery": "The bank robbery happened in broad daylight.", "rape": "The new law increases the sentence for rape and other very serious crimes.", "punishment": "The punishment for the crime was ten years in prison.", "proof": "Do you have any proof that he was there?", "murder": "The detective is investigating a murder in the village.", "question": "The police questioned the witness for two hours.", "kidnapping": "The kidnapping of the businessman made headlines around the world.", "jury": "The jury listened to the evidence for three days.", "judge": "The judge decided to send him to prison for five years.", "investigate": "Police are investigating the cause of the fire.", "mugging": "The mugging took place near the station late at night.", "sentence": "The judge gave him a six-month prison sentence.", "headline": "The newspaper's headline said, \"Prime Minister Resigns\".", "broadcast": "The match will be broadcast live on television.", "press": "The minister refused to speak to the press.", "tabloid": "The tabloids were full of stories about the celebrity wedding.", "gossip": "I don't like gossip; I prefer to talk about real things.", "fake news": "Social media helps fake news to spread very quickly.", "subscribe": "I subscribe to a magazine about science.", "censorship": "Many writers protested against government censorship.", "shoplifting": "The boy was caught shoplifting in a supermarket.", "fine": "She had to pay a fine for parking in the wrong place.", "prison": "He spent five years in prison for the robbery.", "victim": "The victim of the robbery gave a description to the police.", "suspect": "The police have arrested a suspect in connection with the murder.", "trial": "The trial lasted two weeks and ended with a not guilty verdict.", "lawyer": "My lawyer advised me not to say anything to the police.", "break the law": "Driving without a licence is breaking the law.", "get away with": "The thief nearly got away with it, but a camera filmed him.", "plead guilty": "He decided to plead guilty and asked for a lighter sentence."}, "9": {"ignorance": "His ignorance of the rules caused many problems.", "expectation": "The film didn't live up to my expectations.", "hunger": "Hunger is still a serious problem in many parts of the world.", "hopeless": "I'm hopeless at maths; I never understand it.", "homeless": "The charity gives food to homeless people every evening.", "height": "The height of the building is more than three hundred metres.", "improvement": "There has been a great improvement in her English this year.", "heat": "I can't stand the heat in July.", "government": "The government announced a new plan to reduce unemployment.", "friendliness": "The friendliness of the local people made us feel welcome.", "connection": "There is a strong connection between sleep and health.", "employment": "The company offers employment to more than five hundred people.", "distance": "The distance between the two cities is about two hundred kilometres.", "development": "The development of new technology has changed our lives.", "death": "The death of the old king surprised the whole country.", "convenience": "I love the convenience of shopping online.", "coldness": "The coldness of the water surprised the swimmers.", "childhood": "He spent his childhood in a small village by the sea.", "careful": "Be careful when you cross the road.", "bulletproof": "The president travels in a bulletproof car.", "intention": "I had no intention of upsetting you.", "brotherhood": "The brotherhood of the soldiers was very strong.", "entertainment": "There's a lot of entertainment for children at the festival.", "loneliness": "Loneliness is a growing problem among elderly people.", "success": "The success of the film surprised everybody.", "megacity": "Tokyo is a megacity with more than thirty million inhabitants.", "width": "The width of the table is one metre and twenty centimetres.", "weakness": "Chocolate is my biggest weakness.", "waterproof": "You need a waterproof jacket for the hike.", "violence": "The film contains a lot of violence, so it's not suitable for children.", "vandalism": "Vandalism costs the city thousands of euros every year.", "useful": "This app is really useful for learning vocabulary.", "undrinkable": "The water in the well was undrinkable.", "underdeveloped": "Many underdeveloped regions need better schools and hospitals.", "unbreakable": "The phone has an unbreakable screen.", "ugliness": "The ugliness of the building shocked the visitors.", "thought": "It was a nice thought, but it didn't work.", "loss": "The company suffered a big loss last year.", "bilingual": "She is bilingual and speaks English and Spanish at home.", "strength": "Swimming improves your strength and your fitness.", "silence": "The room fell into silence when the teacher walked in.", "racism": "Racism has no place in sport.", "postgraduate": "She is doing a postgraduate course in law.", "pollution": "Air pollution in big cities causes breathing problems.", "overcrowded": "The trains are overcrowded during the rush hour.", "neighbourhood": "I grew up in a quiet neighbourhood near the park.", "monorail": "The monorail takes visitors around the theme park.", "modernism": "Modernism changed the way people designed buildings.", "misunderstood": "I'm sorry, I misunderstood your question.", "subway": "We took the subway to the museum.", "belief": "His belief in himself helped him succeed.", "excitement": "The children could not hide their excitement on Christmas Eve.", "expand": "The company plans to expand into Asia next year.", "drop": "Sales dropped by ten per cent last month.", "do well": "She did well in her exams and got a place at university.", "do market research": "We need to do market research before launching the product.", "do business": "Many companies want to do business with China.", "do badly": "The team did badly in the first half and lost.", "do a job": "The plumber did a great job fixing the pipe.", "do a deal": "The two companies did a deal worth ten million euros.", "close down": "The shop closed down after thirty years in business.", "chain": "He owns a chain of coffee shops in the north of England.", "branch": "The bank is opening a new branch in my town.", "become the market leader": "The company wants to become the market leader within five years.", "any other business": "The meeting ended with any other business, and then everybody went home.", "sue": "She decided to sue the company for the accident.", "slogan": "\"Just do it\" is a famous advertising slogan.", "publicity": "The festival got a lot of publicity in the local press.", "misleading": "The advert was misleading because it hid the real price.", "consumers": "Consumers are paying more for food this year.", "claims": "The company claims that its product is completely safe.", "brand": "This brand of trainers is popular with young people.", "advertisements": "There are too many advertisements on television.", "advertising campaign": "The advertising campaign cost more than a million euros.", "autopilot": "The pilot turned on the autopilot and relaxed.", "export": "Spain exports a lot of olive oil.", "flop": "The film was a complete flop and left the cinemas after a week.", "boom": "The city had a boom in tourism after the festival.", "go out of business": "Many small shops went out of business during the crisis.", "alcoholism": "Alcoholism can destroy families.", "get down to business": "Let's stop chatting and get down to business.", "accommodation": "The price includes accommodation and breakfast.", "abundance": "The country has an abundance of natural resources.", "absence": "Her absence from the meeting was noticed by everyone.", "unfinished business": "He left the country with some unfinished business.", "take over": "The bank was taken over by a larger company.", "recession": "The country is going through a recession, and many people have lost their jobs.", "produce": "The factory produces five thousand cars a year.", "none of your business": "Where I spend my money is none of your business.", "mix business with pleasure": "I never mix business with pleasure, so I don't go out with colleagues.", "mind your own business": "Mind your own business and leave me alone.", "set up": "They set up a small company in 2015.", "merge": "The two banks will merge next year.", "head office": "The head office is in Madrid, and the branches are across Spain.", "import": "The country has to import most of its oil.", "launch": "The company will launch its new phone in March.", "grow": "The business grew quickly in its first year.", "make a loss": "The airline made a loss of two million euros last year.", "make a decision": "It's difficult to make a decision when you don't have all the facts.", "make money": "He wants to make money by selling things online.", "make (sb) redundant": "The company made fifty workers redundant.", "manufacture": "The company manufactures cheap plastic toys.", "mean business": "The manager said she meant business and nobody laughed.", "make a profit": "The shop made a small profit in its first year.", "turnover": "The company's turnover rose to ten million euros last year.", "shareholder": "Every shareholder received a letter about the merger.", "ceo": "The CEO announced a new strategy for the company.", "start-up": "She left her job to create her own tech start-up.", "customer": "The customer complained about the bad service.", "supplier": "We changed suppliers because the old one was too slow.", "retail": "He works in retail and sells clothes in a big shop.", "wholesale": "The restaurant buys its vegetables at wholesale prices.", "invest": "They decided to invest their savings in a new business.", "budget": "We have a limited budget, so we can't buy new computers.", "competitor": "Our main competitor has just lowered its prices.", "market share": "The company increased its market share by five per cent.", "bankrupt": "The company went bankrupt after losing its biggest client.", "negotiate": "The unions will negotiate with the company about wages.", "target audience": "The target audience of the campaign is young adults.", "workforce": "The company has a workforce of two thousand people.", "sales figures": "The sales figures are better than we expected.", "bargain": "At only five euros, the book was a real bargain.", "cut costs": "The company has to cut costs to survive.", "sustainable": "We try to use sustainable materials in our products.", "happiness": "Money doesn't always bring happiness.", "sadness": "He felt a deep sadness when his friend moved away.", "freedom": "Freedom of speech is a basic right.", "friendship": "Their friendship has lasted for more than thirty years."}};
+/*@@/SENT@@*/
+
+var ROUND = 10;
+function parse(txt, extra){
+  return (txt || "").trim().split("\n").filter(Boolean).map(function(l){
+    var i = l.indexOf("|");
+    return {en:l.slice(0,i).trim(), es:l.slice(i+1).trim(), x:extra};
+  });
+}
+var UNITS = RAW.map(function(u){
+  var seen = {};
+  function ok(w){
+    var k = w.en.toLowerCase();
+    if (k === w.es.toLowerCase() || seen[k]) return false;
+    seen[k] = 1; return true;
+  }
+  var main = parse(u.d, false).filter(ok);
+  var extra = parse(EXTRA[u.n], true).filter(ok);
+  var sm = SENT[u.n] || {};
+  main.concat(extra).forEach(function(w){ w.s = sm[w.en.toLowerCase()]; });
+  return {n:u.n, t:u.t, h:u.h, main:main, extra:extra, words:main.concat(extra)};
+});
+
+var $ = function(s){ return document.querySelector(s); };
+var screens = {home:$("#home"), game:$("#game"), rush:$("#rush"), end:$("#end")};
+function show(name){
+  for (var k in screens) screens[k].hidden = (k !== name);
+  window.scrollTo(0,0);
+}
+function shuffle(a){
+  a = a.slice();
+  for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+function fmt(s){ var m=Math.floor(s/60), r=s%60; return m+":"+(r<10?"0":"")+r; }
+
+/* ---------- Home ---------- */
+var mode = "one";
+var picked = {};
+UNITS.forEach(function(u){ picked[u.n] = true; });
+
+var unitsEl = $("#units");
+UNITS.forEach(function(u){
+  var b = document.createElement("button");
+  b.className = "unit";
+  b.style.setProperty("--h", u.h);
+  b.dataset.n = u.n;
+  b.innerHTML = '<span class="tick" aria-hidden="true">&#10003;</span><span class="num">Unit '+u.n+'</span><span class="name">'+u.t.replace(/&/g,"&amp;")+'</span><span class="count">'+u.main.length+' words'+(u.extra.length ? ' + '+u.extra.length+' extra' : '')+'</span>';
+  b.addEventListener("click", function(){
+    if (mode === "one") { start([u]); }
+    else { picked[u.n] = !picked[u.n]; renderHome(); }
+  });
+  unitsEl.appendChild(b);
+});
+
+function renderHome(){
+  var one = mode === "one";
+  $("#modeOne").setAttribute("aria-pressed", one);
+  $("#modeMix").setAttribute("aria-pressed", !one);
+  $("#home").classList.toggle("mixmode", !one);
+  $("#mixbar").hidden = one;
+  var total = 0;
+  Array.prototype.forEach.call(unitsEl.children, function(b){
+    var n = +b.dataset.n;
+    if (one) b.removeAttribute("aria-pressed");
+    else b.setAttribute("aria-pressed", !!picked[n]);
+    if (picked[n]) total += UNITS[n-1].words.length;
+  });
+  var cnt = UNITS.filter(function(u){ return picked[u.n]; }).length;
+  var sm = $("#startMix");
+  sm.disabled = cnt === 0;
+  sm.textContent = cnt === 0 ? "Pick at least one unit" : "Start mix · " + cnt + (cnt===1?" unit":" units") + " · " + total + " words";
+}
+$("#modeOne").addEventListener("click", function(){ mode="one"; renderHome(); });
+$("#modeMix").addEventListener("click", function(){ mode="mix"; renderHome(); });
+$("#allBtn").addEventListener("click", function(){ UNITS.forEach(function(u){ picked[u.n]=true; }); renderHome(); });
+$("#noneBtn").addEventListener("click", function(){ UNITS.forEach(function(u){ picked[u.n]=false; }); renderHome(); });
+$("#startMix").addEventListener("click", function(){
+  var sel = UNITS.filter(function(u){ return picked[u.n]; });
+  if (sel.length) start(sel);
+});
+
+/* ---------- Game ---------- */
+var cur = null;           // current selection of units
+var seenByPool = loadSeen();   // pool key -> {english: true}, remembered between visits
+function loadSeen(){
+  try { return JSON.parse(localStorage.getItem("wm-seen-v2") || "{}") || {}; } catch(e){ return {}; }
+}
+function saveSeen(){
+  try { localStorage.setItem("wm-seen-v2", JSON.stringify(seenByPool)); } catch(e){}
+}
+var G = null;             // round state
+
+function buildRound(units){
+  var key = units.map(function(u){ return u.n; }).join(",");
+  var pool = [];
+  units.forEach(function(u){ pool = pool.concat(u.words); });
+  var seen = seenByPool[key] || (seenByPool[key] = {});
+  var unseen = pool.filter(function(w){ return !seen[w.en]; });
+  if (!unseen.length){ seen = seenByPool[key] = {}; unseen = pool.slice(); }   // everything played: start over
+  var order = shuffle(unseen.filter(function(w){ return !w.x; }))              // official words first
+    .concat(shuffle(unseen.filter(function(w){ return w.x; })))                // then extra words on the topic
+    .concat(shuffle(pool.filter(function(w){ return seen[w.en]; })));          // recycle only if still short
+  var usedEn = {}, usedEs = {}, items = [];
+  order.forEach(function(w){
+    if (items.length >= ROUND) return;
+    var e = w.en.toLowerCase(), s = w.es.toLowerCase();
+    if (usedEn[e] || usedEs[s]) return;     // no ambiguous pairs inside one round
+    usedEn[e] = usedEs[s] = true;
+    items.push({id: items.length, en: w.en, es: w.es, s: w.s, h: w.h});
+  });
+  items.forEach(function(it){ seen[it.en] = true; });
+  saveSeen();
+  return items;
+}
+
+function start(units){
+  cur = units;
+  var items = buildRound(units);
+  G = {items:items, left:items.length, miss:0, t0:Date.now(), sel:{en:null, es:null}, lock:false, timer:null};
+  $("#gTitle").textContent = units.length === 1 ? (units[0].label || "Unit " + units[0].n + " · " + units[0].t) : "Mix · " + units.length + " units";
+  $("#gProg").setAttribute("aria-valuemax", items.length);
+  var ce = $("#colEn"), cs = $("#colEs");
+  ce.innerHTML = '<div class="colhead">English</div>';
+  cs.innerHTML = '<div class="colhead">Español</div>';
+  shuffle(items).forEach(function(it){ ce.appendChild(tile(it, "en")); });
+  shuffle(items).forEach(function(it){ cs.appendChild(tile(it, "es")); });
+  updateBar();
+  show("game");
+  clearInterval(G.timer);
+  G.timer = setInterval(function(){ $("#gTime").textContent = fmt(Math.floor((Date.now()-G.t0)/1000)); }, 250);
+}
+function tile(it, side){
+  var b = document.createElement("button");
+  b.className = "tile" + (side === "es" ? " es" : "");
+  b.textContent = side === "en" ? it.en : it.es;
+  b.dataset.id = it.id; b.dataset.side = side;
+  b.addEventListener("click", function(){ pick(b); });
+  return b;
+}
+function updateBar(){
+  var total = G.items.length, done = total - G.left;
+  $("#gFill").style.width = (done/total*100) + "%";
+  $("#gProg").setAttribute("aria-valuenow", done);
+  $("#gLeft").textContent = G.left;
+  $("#gMiss").innerHTML = "Misses <b>" + G.miss + "</b>";
+}
+function pick(b){
+  if (G.lock || b.classList.contains("gone")) return;
+  var side = b.dataset.side;
+  if (G.sel[side] === b){ b.classList.remove("sel"); G.sel[side] = null; return; }
+  if (G.sel[side]) G.sel[side].classList.remove("sel");
+  G.sel[side] = b; b.classList.add("sel");
+  if (G.sel.en && G.sel.es) check();
+}
+function check(){
+  var a = G.sel.en, b = G.sel.es;
+  G.sel = {en:null, es:null};
+  G.lock = true;
+  if (a.dataset.id === b.dataset.id){
+    a.classList.remove("sel"); b.classList.remove("sel");
+    a.classList.add("ok"); b.classList.add("ok");
+    setTimeout(function(){
+      a.classList.add("gone"); b.classList.add("gone");
+      G.left--; updateBar();
+      G.lock = false;
+      setTimeout(function(){
+        a.remove(); b.remove();
+        if (G.left === 0) finish();
+      }, 280);
+    }, 160);
+  } else {
+    G.miss++; updateBar();
+    a.classList.remove("sel"); b.classList.remove("sel");
+    a.classList.add("wrong"); b.classList.add("wrong");
+    setTimeout(function(){
+      a.classList.remove("wrong"); b.classList.remove("wrong");
+      G.lock = false;
+    }, 420);
+  }
+}
+$("#backBtn").addEventListener("click", function(){
+  if (G) clearInterval(G.timer);
+  show("home");
+});
+
+/* ---------- End ---------- */
+function finish(){
+  clearInterval(G.timer);
+  var secs = Math.floor((Date.now()-G.t0)/1000);
+  var n = G.items.length;
+  var acc = Math.round(n / (n + G.miss) * 100);
+  var title, sub;
+  if (G.miss === 0){ title = "Flawless."; sub = "Not a single slip. Every pair matched first time."; }
+  else if (acc >= 85){ title = "Sharp work."; sub = "Just a couple of wobbles. Another round will lock them in."; }
+  else if (acc >= 65){ title = "Getting there."; sub = "Plenty of pairs landed. The next 25 will bring new words."; }
+  else { title = "Good practice."; sub = "Tricky list. Play another round and the words will start to stick."; }
+  showEnd(title, sub, [[fmt(secs),"Time"],[G.miss,"Misses"],[acc+"%","Accuracy"]], "Next 10", function(){ start(cur); },
+    "Words in context", G.items.map(function(it){ return {t:it.en, sub:it.es, s:it.s, hl:it.h || it.en}; }));
+  if (acc >= 65) confetti();
+}
+var againFn = null;
+function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function hl(sentence, phrase){
+  if (!sentence) return "";
+  var low = sentence.toLowerCase(), i = -1, p = phrase || "";
+  if (p) i = low.indexOf(p.toLowerCase());
+  if (i < 0 && p){ p = p.replace(/\s*\([^)]*\)/g, "").trim(); if (p) i = low.indexOf(p.toLowerCase()); }
+  if (i < 0) return esc(sentence);
+  return esc(sentence.slice(0,i)) + "<mark>" + esc(sentence.slice(i, i+p.length)) + "</mark>" + esc(sentence.slice(i+p.length));
+}
+function renderRecap(title, rows){
+  var box = $("#eRecap");
+  if (!rows || !rows.length){ box.innerHTML = ""; box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = "<h3>" + esc(title) + "</h3>" + rows.map(function(r){
+    return '<div class="ri' + (r.ok === true ? " good" : r.ok === false ? " bad" : "") + '">' +
+      (r.ok === undefined ? "" : '<span class="mk">' + (r.ok ? "&#10003;" : "&#10007;") + "</span>") +
+      (r.t ? '<div class="w">' + esc(r.t) + (r.sub ? ' <em>&middot; ' + esc(r.sub) + "</em>" : "") + "</div>" : "") +
+      (r.s ? '<p class="x">' + hl(r.s, r.hl) + "</p>" : "") +
+      (r.note ? '<p class="e">' + esc(r.note) + "</p>" : "") + "</div>";
+  }).join("");
+}
+function showEnd(title, sub, stats, againLabel, fn, recapTitle, rows){
+  $("#eTitle").textContent = title;
+  $("#eSub").textContent = sub;
+  $("#eStats").innerHTML = stats.map(function(s){ return "<div><b>"+s[0]+"</b><span>"+s[1]+"</span></div>"; }).join("");
+  $("#againBtn").textContent = againLabel;
+  againFn = fn;
+  renderRecap(recapTitle, rows);
+  show("end");
+}
+$("#againBtn").addEventListener("click", function(){ if (againFn) againFn(); });
+$("#changeBtn").addEventListener("click", function(){ show("home"); });
+
+function confetti(){
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var box = $("#confetti"), cols = ["#5B3DF5","#FFE35C","#F2415F","#12A66A","#FF8A3D"];
+  box.innerHTML = "";
+  for (var i=0;i<44;i++){
+    var p = document.createElement("i");
+    p.style.left = Math.random()*100 + "vw";
+    p.style.background = cols[i % cols.length];
+    p.style.animationDuration = (1.8 + Math.random()*1.6) + "s";
+    p.style.animationDelay = (Math.random()*0.5) + "s";
+    box.appendChild(p);
+  }
+  setTimeout(function(){ box.innerHTML = ""; }, 4200);
+}
+
+/* ---------- Exam skills ---------- */
+var QN = 10;           // questions per round, no timer
+var PREPS = ["in","on","at","of","for","to","with","from","about","by"];
+
+/* phrasal verb | Español | sentence | (answer form if different) */
+var PV_DATA = `give up|dejar de|He decided to ____ smoking after New Year.
+look after|cuidar de|Could you ____ my cat while I'm on holiday?
+look up|buscar (en un diccionario)|Can you ____ the word in the dictionary?
+put off|posponer|We had to ____ the meeting until next week.
+turn down|rechazar|She decided to ____ the job offer.
+come across|encontrarse por casualidad con|You never know what you might ____ in an old attic.
+carry out|llevar a cabo|The scientists will ____ the experiment next month.
+break down|averiarse|I hope the car doesn't ____ on the motorway.
+find out|descubrir|I want to ____ what time the train leaves.
+get over|superar (una enfermedad)|It took her weeks to ____ the flu.
+get along with|llevarse bien con|Do you ____ your new colleagues?
+run out of|quedarse sin|We're going to ____ petrol if we don't stop soon.
+set up|fundar|They plan to ____ their own company next year.
+take off|despegar|The plane is about to ____.
+take up|empezar (una afición)|I'd like to ____ yoga this autumn.
+turn up|aparecer|He promised to come, but he didn't ____.
+bring up|criar|It's hard to ____ three children on one salary.
+call off|cancelar|The organisers have decided to ____ the festival altogether.
+cut down on|reducir el consumo de|You should ____ sugar if you want to lose weight.
+deal with|ocuparse de|The manager has to ____ a lot of complaints every day.
+end up|acabar|If you don't plan the route, you'll ____ lost.
+fall out with|enemistarse con|I don't want to ____ my sister over something so silly.
+get away with|salirse con la suya|He cheats in every test and somehow manages to ____ it.
+hold on|esperar un momento|Could you ____ for a moment? I'm on the other line.
+keep up with|seguir el ritmo de|It's hard to ____ all the changes in technology.
+let down|decepcionar|I promised to help, and I don't want to ____ my friends.
+look forward to|tener ganas de|We ____ seeing you next week.
+make up|inventar|He'd better not ____ another excuse.
+pick up|recoger|Can you ____ the kids from school at four?
+point out|señalar|I'd like to ____ that the deadline is tomorrow.
+put up with|soportar|I can't ____ the noise any longer.
+show off|presumir|He bought a sports car just to ____ in front of his friends.
+stand for|significar|What does the abbreviation EU ____?
+take after|parecerse a|People say I ____ my father.
+throw away|tirar|Don't ____ those bottles; we can recycle them.
+try on|probarse|Would you like to ____ the jacket before you buy it?
+turn into|convertirse en|The caterpillar will ____ a butterfly.
+wear out|desgastarse|If you walk every day, these shoes will ____ quickly.
+work out|hacer ejercicio|I try to ____ at the gym three times a week.
+back up|hacer una copia de seguridad de|Please ____ your files before you update the system.
+bring about|provocar|The new law could ____ big changes in education.
+catch up with|ponerse al día con|I need to ____ my emails after the holiday.
+come up with|idear|We need to ____ a better plan.
+drop out of|abandonar (los estudios)|He decided to ____ university in his second year.
+get by|arreglárselas|We can barely ____ on one salary.
+give in|ceder|After an hour of arguing, he finally decided to ____.
+go through|pasar por (una mala etapa)|She had to ____ a very difficult time after the accident.
+hand in|entregar|Students must ____ their essays by Friday.
+look into|investigar|The police will ____ the case.
+pass away|fallecer|My grandmother is very old and might ____ soon.
+pull off|lograr (algo difícil)|Nobody thought he could ____ such a difficult plan.
+rely on|confiar en|You can always ____ me if you need help.
+settle down|sentar la cabeza|He wants to ____ and start a family.
+take over|hacerse cargo de|The new manager will ____ the department next month.
+turn out|resultar|I hope everything will ____ all right.
+break up|romper (una relación)|They decided to ____ after five years together.
+put on|ponerse (ropa)|It's freezing outside, so ____ a warm coat.
+move on|pasar página|It's time to forget the past and ____.
+run away|escaparse|The boy tried to ____ from home.
+grow up|crecer|I'd like my children to ____ in a small town.
+check in|registrarse (en un hotel)|You can ____ at the hotel from two o'clock.
+pay back|devolver (dinero)|I'll ____ the money I owe you on Friday.`;
+
+/* idiom | Español (meaning) | sentence | (answer form if different) */
+var ID_DATA = `a piece of cake|pan comido|The exam was ____; I finished it in twenty minutes.
+under the weather|pachucho|I'm feeling a bit ____ today, so I'll stay in bed.
+once in a blue moon|muy de vez en cuando|We only eat out ____, maybe twice a year.
+break the ice|romper el hielo|He told a joke to ____ at the start of the meeting.
+hit the nail on the head|dar en el clavo|You ____ when you said the problem is communication.
+spill the beans|irse de la lengua|Please don't ____ about the surprise party!
+cost an arm and a leg|costar un ojo de la cara|I won't buy that bag; it would ____.
+on the ball|espabilado / al tanto|Our new assistant is really ____; she never misses a deadline.
+out of the blue|de repente|She called me ____ after ten years of silence.
+the last straw|la gota que colma el vaso|He arrived two hours late again, and that was ____.
+bite off more than you can chew|abarcar más de lo que se puede|I think I've ____ by taking on three projects.|bitten off more than I can chew
+pull someone's leg|tomar el pelo a alguien|Are you serious, or are you ____?|pulling my leg
+in the same boat|en el mismo barco|Don't worry about the deadline; we're all ____.
+get cold feet|echarse atrás|He ____ the night before the wedding.|got cold feet
+call it a day|dejarlo por hoy|We've been working for ten hours; let's ____.
+beat around the bush|andarse por las ramas|Stop ____ and tell me what happened.|beating around the bush
+a blessing in disguise|una bendición disfrazada|Losing that job was ____; I found a much better one.
+back to square one|volver al punto de partida|The test failed, so we're ____ again.
+the ball is in your court|te toca mover ficha|I've made my offer, so now ____.
+miss the boat|perder el tren|If you don't apply today, you'll ____.
+go the extra mile|esforzarse más|If you want to succeed, you must be ready to ____.
+on thin ice|en la cuerda floja|After being late again, he's ____ with the boss.
+see eye to eye|estar de acuerdo|My brother and I never ____ about politics.
+cut corners|escatimar esfuerzos|The builders ____ to save money, and now the roof leaks.
+through thick and thin|en las buenas y en las malas|True friends stay together ____.
+add insult to injury|echar sal en la herida|They lost my luggage and, to ____, they were rude about it.
+jump on the bandwagon|subirse al carro|Everyone is investing in crypto, so he decided to ____.
+kill two birds with one stone|matar dos pájaros de un tiro|I'll do the shopping on my way home, ____.|killing two birds with one stone
+a drop in the ocean|una gota en el océano|Our donation was just ____ compared with what they need.
+speak of the devil|hablando del rey de Roma|____! We were just talking about you.
+the tip of the iceberg|la punta del iceberg|The problems you can see are just ____.
+the best of both worlds|lo mejor de los dos mundos|Working from home two days a week gives me ____.
+get out of hand|descontrolarse|The party started to ____ around midnight.
+keep an eye on|vigilar|Could you ____ my bag for a minute?
+pull yourself together|recomponerte|Come on, ____! It's only a small mistake.
+sit on the fence|no tomar partido|You can't ____ forever; you have to decide.
+on cloud nine|en el séptimo cielo|She was ____ after she heard the news.
+have a lot on your plate|tener mucho trabajo|I can't take another project; I ____ already.|have a lot on my plate
+jump the gun|precipitarse|Don't ____; wait until we have all the results.
+make ends meet|llegar a fin de mes|With two jobs, she can barely ____.
+take it with a pinch of salt|tomárselo con cautela|Gossip is usually exaggerated, so ____.
+the elephant in the room|el tema incómodo que nadie menciona|Nobody wanted to mention ____: the company was losing money.
+a rule of thumb|regla general|As ____, you should drink two litres of water a day.
+draw the line|poner un límite|I'm happy to help, but I ____ at lending you money.
+bend over backwards|hacer todo lo posible|The staff ____ to make our stay perfect.|bent over backwards
+by the skin of your teeth|por los pelos|I passed the exam ____.|by the skin of my teeth
+easier said than done|más fácil decirlo que hacerlo|Losing weight is ____.
+not my cup of tea|no es santo de mi devoción|Horror films are ____; I prefer comedies.
+sleep on it|consultarlo con la almohada|It's a big decision, so let me ____.
+have second thoughts|tener dudas|I'm ____ about moving abroad.|having second thoughts`;
+
+/* sentence | preposition */
+var PP_DATA = `She's very interested ____ modern art.|in
+I'm afraid ____ spiders.|of
+He's really good ____ playing the guitar.|at
+They are responsible ____ the whole project.|for
+It all depends ____ the weather.|on
+I'm looking forward ____ the holidays.|to
+She is married ____ a doctor.|to
+He apologised ____ being late.|for
+We're very proud ____ our daughter.|of
+I'm worried ____ the exam.|about
+It's very similar ____ the one I had before.|to
+She suffers ____ terrible headaches.|from
+I insist ____ paying for dinner.|on
+They are very fond ____ their grandparents.|of
+He's keen ____ football.|on
+She was jealous ____ her sister's success.|of
+I'm allergic ____ nuts.|to
+He was accused ____ stealing a car.|of
+I'm not used ____ getting up so early.|to
+She was dressed ____ black.|in
+I completely agree ____ you.|with
+He's addicted ____ video games.|to
+We congratulated her ____ passing the exam.|on
+The teacher blamed him ____ the mistake.|for
+I'm so excited ____ the trip.|about
+She's capable ____ doing much better.|of
+She's engaged ____ a French man.|to
+He's famous ____ his paintings.|for
+I'm satisfied ____ the service.|with
+The film is based ____ a true story.|on
+He prevented them ____ leaving.|from
+She's very committed ____ her job.|to
+The company succeeded ____ opening a new branch.|in
+She specialises ____ tax law.|in
+I'm sick ____ his excuses.|of
+He's absent ____ school today.|from
+The course consists ____ ten lessons.|of
+You must adapt ____ the new situation.|to
+We rely ____ our teachers.|on
+He stared ____ me in silence.|at
+Smoking is bad ____ your health.|for
+I'm in charge ____ the marketing team.|of
+I prefer tea ____ coffee.|to
+The accident resulted ____ three injuries.|in
+He doesn't believe ____ ghosts.|in
+Please take care ____ the baby.|of
+She's crazy ____ jazz.|about
+I was listening ____ the radio.|to
+I waited ____ him for an hour.|for
+Don't laugh ____ me!|at
+She's aware ____ the risks.|of
+I object ____ being treated like that.|to
+There has been an increase ____ prices.|in
+We need a solution ____ this problem.|to
+He's recovering ____ a bad illness.|from
+I'm in favour ____ the new plan.|of
+She is excellent ____ solving problems.|at
+We are very grateful ____ your support.|for
+He is envious ____ her success.|of
+She is critical ____ everything I do.|of
+He is guilty ____ lying to the police.|of
+He is innocent ____ the crime.|of
+This book is full ____ useful tips.|of
+He is known ____ his generosity.|for
+They took part ____ the competition.|in
+We argued ____ money all night.|about
+She is fluent ____ three languages.|in
+He complained ____ the manager about the food.|to
+Look ____ the picture on the wall.|at
+She smiled ____ me and waved.|at
+This bag belongs ____ my sister.|to
+He was punished ____ cheating in the test.|for
+I'm ready ____ the exam.|for
+She is very close ____ her sister.|to
+She is scared ____ the dark.|of
+She is accustomed ____ working late.|to
+The result is typical ____ this kind of project.|of
+We should concentrate ____ our work.|on
+This restaurant is popular ____ tourists.|with
+He is very patient ____ children.|with
+The room was crowded ____ tourists.|with
+She is busy ____ her homework.|with
+He lost interest ____ the game.|in
+There's no need ____ panic.|for
+The cause ____ the accident is still unknown.|of
+There has been a decrease ____ sales this year.|in`;
+
+function parseQ(txt, kind){
+  return txt.trim().split("\n").filter(Boolean).map(function(l, i){
+    var f = l.split("|");
+    if (kind === "pp") return {id:kind+i, s:f[0].trim(), a:f[1].trim(), en:f[1].trim(), es:""};
+    return {id:kind+i, en:f[0].trim(), es:f[1].trim(), s:f[2].trim(), a:(f[3] || f[0]).trim()};
+  });
+}
+var SKILLS = {
+  pv:{name:"Phrasal verbs", h:22, pairs:true, rushName:"Gap Fill", items:parseQ(PV_DATA,"pv"),
+      blurb:"Learn them in pairs, then pick the one that fits the sentence.", hint:"Which phrasal verb completes the sentence?"},
+  id:{name:"Idioms", h:318, pairs:true, rushName:"Idiom Detective", items:parseQ(ID_DATA,"id"),
+      blurb:"Match each idiom to its meaning, or find the idiom that fits the situation.", hint:"Which idiom fits the situation?"},
+  pp:{name:"Dependent prepositions", h:196, pairs:false, rushName:"Gap Fill", items:parseQ(PP_DATA,"pp"),
+      blurb:"Interested in, afraid of, depend on. Pick the right preposition.", hint:"Which preposition completes the sentence?"}
+};
+
+/* Grammar topics. Line format: sentence with ____ | answer | wrong1;wrong2;wrong3 | short explanation */
+var GRAMMAR = {};
+function addGram(key, name, h, blurb, txt){
+  GRAMMAR[key] = {name:name, h:h, blurb:blurb, rushName:"Gap Fill", pairs:false, hint:"Choose the correct option.",
+    items: txt.trim().split("\n").filter(Boolean).map(function(l, i){
+      var f = l.split("|");
+      return {id:"g" + key + i, s:f[0].trim(), a:f[1].trim(), o:f[2].split(";").map(function(x){ return x.trim(); }), es:"", why:(f[3] || "").trim()};
+    })};
+}
+/*@@GRAM@@*/
+addGram("used", "Used to, be used to, get used to", 150, "Past habits, being accustomed to something, and getting accustomed to it.", "When I was a child, I ____ play in the street every afternoon.|used to|am used to;get used to;was using to|Used to + infinitive describes a habit in the past.\nDid you ____ live in London?|use to|used to;get used to;be used to|After did/didn't, the form is use to (no -d).\nI didn't ____ like coffee, but now I love it.|use to|used to;get used to;be used to|Negative with didn't: use to + infinitive.\nShe isn't ____ the cold weather yet.|used to|use to;used to be;getting used|Be used to + noun/-ing means to be accustomed to something.\nIt took me a few months to ____ living in the city.|get used to|used to;be use to;get use to|Get used to + -ing is the process of becoming accustomed.\nI'm not used to ____ so early.|getting up|get up;got up;to get up|After be used to we use a noun or the -ing form.\nHe used to ____ a lot of sport when he was younger.|do|doing;did;to do|Used to is followed by the base form of the verb.\nMy grandfather ____ the guitar, but now his fingers hurt.|used to play|is used to play;is used to playing;used to playing|Used to + infinitive for a past habit that no longer exists.\nYou'll soon ____ the new schedule.|get used to|use to;used to;be used to|Soon + get used to: you will become accustomed to it.\nWe're ____ working long hours, so it doesn't bother us.|used to|use to;used;getting use|Be used to + -ing: we are accustomed to it.\nThere ____ be a cinema here, but it closed years ago.|used to|is used to;was used to;use to|Used to also describes past states, not only habits.\nAre you ____ driving on the left?|used to|use to;used;get used to|Be used to + -ing, used in a question.\nI can't ____ the noise from the street.|get used to|be used to;used to;use to|Can't get used to + noun: I can't become accustomed to it.\nWhen we lived in Italy, we ____ eat pasta twice a week.|used to|were used to;got used to;use to|A past habit: used to + infinitive.\nShe ____ speak much English when she arrived, but she's fluent now.|didn't use to|didn't used to;wasn't used to;doesn't use to|Negative past habit: didn't use to + infinitive.\nAfter a week, the children had got ____ the new school.|used to|use to;used;get used|Get used to + noun: become accustomed to something.");
+addGram("wish", "I wish and if only", 280, "Regrets, unreal situations and things that annoy you.", "I wish I ____ more free time.|had|have;would have;has|Wish + past simple talks about an unreal present situation.\nIf only I ____ the answer, I would tell you.|knew|know;had known;would know|If only + past simple: a present situation we would like to be different.\nI wish I ____ to the party last night.|had gone|went;would go;have gone|Wish + past perfect expresses a regret about the past.\nI wish it ____ raining; I want to go out.|would stop|stopped;had stopped;stops|Wish + would is used for things we want to change or that annoy us.\nIf only I ____ taller!|were|am;would be;had been|In wishes about the present, were is correct for all persons.\nShe wishes she ____ a car, but she can't afford one.|had|has;would have;has had|Wish + past simple: she doesn't have a car now.\nI wish I ____ to the doctor earlier; now I feel worse.|had gone|went;would go;have gone|Past regret: wish + past perfect.\nIf only he ____ listen to me!|would|will;did;had|If only + would: we are annoyed because he doesn't listen.\nI wish I ____ speak Chinese.|could|can;would;did|Wish + could for an ability we don't have.\nThey wish they ____ the match yesterday.|had won|won;would win;have won|A regret about the past needs the past perfect.\nI wish it ____ summer all year.|were|is;would be;had been|Unreal present: wish + past simple (were).\nIf only I ____ so rude to her last night!|hadn't been|wasn't;weren't;wouldn't be|If only + past perfect: regret about something we did.\nI wish I ____ in a bigger flat.|lived|live;would live;had lived|Wish + past simple for a present situation we don't like.\nIf only we ____ more time!|had|have;would have;has|If only + past simple: we don't have more time now.\nI wish I ____ so much last night; I feel awful.|hadn't eaten|didn't eat;wouldn't eat;haven't eaten|Regret about the past: wish + past perfect.\nI wish people ____ their litter on the beach.|wouldn't leave|didn't leave;don't leave;hadn't left|Wish + would for annoying habits of other people.");
+addGram("passive", "Passive voice", 10, "Choose the right passive form in every tense.", "The Mona Lisa ____ by Leonardo da Vinci.|was painted|painted;is painted;has painted|Past simple passive: was/were + past participle.\nEnglish ____ all over the world.|is spoken|speaks;is speaking;spoken|Present simple passive: am/is/are + past participle.\nThe bridge ____ at the moment.|is being repaired|is repaired;repairs;has repaired|Present continuous passive: am/is/are being + past participle.\nMy car ____ yesterday.|was stolen|stole;has stolen;was stealing|We use the passive when the action matters more than the thief.\nThe report ____ by Friday.|will be finished|will finish;finished;is finishing|Future passive: will be + past participle.\nThe windows ____ twice a month.|are cleaned|clean;are cleaning;cleaned|A routine in the passive: are + past participle.\nThe new library ____ by the mayor next year.|will be opened|will open;opens;is opening|With by + agent in the future we need will be + past participle.\nThe suspect ____ by the police when he tried to leave the country.|was arrested|arrested;has arrested;was arresting|Past simple passive.\nThis room ____ since last week.|has not been used|is not used;did not use;has not used|Present perfect passive: has/have been + past participle.\nThe house ____ when we arrived.|was being painted|was painting;painted;had paint|Past continuous passive: was/were being + past participle.\nHundreds of jobs ____ if the factory closes.|will be lost|will lose;are lost;lost|Future passive after a first conditional.\nShe ____ a prize for her research last year.|was given|gave;has given;was gave|Give has two objects, so either can become the subject.\nThe documents must ____ before Monday.|be signed|sign;be signing;been signed|Modal passive: modal + be + past participle.\nThe cake ____ by the time we arrived.|had been eaten|was eaten;had eaten;has been eaten|Past perfect passive: had been + past participle.\nI don't like ____ what to do.|being told|telling;to tell;told|After like we use the -ing form; the passive is being + past participle.\nThe painting is believed ____ stolen in 1990.|to have been|to be;to have;being|Passive reporting with a past event: to have been + past participle.");
+addGram("cond", "Conditionals", 205, "Zero, first, second, third and mixed conditionals, plus unless and as long as.", "If you heat ice, it ____.|melts|will melt;would melt;melted|Zero conditional: general truths use present simple + present simple.\nIf it rains tomorrow, we ____ at home.|will stay|would stay;stayed;had stayed|First conditional: present simple + will for real future possibilities.\nIf I ____ you, I would apologise.|were|am;would be;had been|Second conditional advice: If I were you, I would...\nIf she had studied harder, she ____ the exam.|would have passed|would pass;will pass;had passed|Third conditional: past perfect + would have + past participle.\nI'll call you as soon as I ____ home.|get|will get;would get;got|After as soon as we use the present simple for the future.\nIf I won the lottery, I ____ round the world.|would travel|will travel;travelled;would have travelled|Second conditional: past simple + would + infinitive.\nYou will miss the bus ____ you hurry up.|unless|if;in case;as long as|Unless means if not: you will miss it if you don't hurry.\nYou can borrow my car ____ you drive carefully.|as long as|unless;in case;otherwise|As long as means only if.\nTake an umbrella ____ it rains.|in case|unless;as long as;providing|In case is used for precautions: you take it just to be safe.\nIf I ____ known about the problem, I would have helped.|had|have;would have;knew|Third conditional: if + past perfect.\nIf he were more careful, he ____ so many accidents.|wouldn't have|won't have;hadn't;didn't have|Second conditional: were + would + infinitive.\nIf I hadn't missed the bus, I ____ late for work now.|wouldn't be|won't be;wouldn't have been;am not|Mixed conditional: a past cause and a present result.\nWhat ____ if there was a fire?|would you do|will you do;did you do;would you have done|Second conditional question: what would you do?\nIf you ____ any problems, call me.|have|will have;would have;had|First conditional: present simple in the if-clause.\nI wouldn't be so tired if I ____ to bed earlier last night.|had gone|went;would go;have gone|Mixed conditional: past perfect in the if-clause.\nIf it ____ for his help, we would have lost.|hadn't been|wasn't;weren't;wouldn't be|If it hadn't been for = without (a past situation).");
+addGram("report", "Reported speech", 330, "Backshift, reported questions, commands and reporting verbs.", "She said, \"I am tired.\" She said that she ____ tired.|was|is;were;had be|Present simple moves back to past simple in reported speech.\nHe said, \"I will call you.\" He said he ____ me.|would call|will call;calls;is calling|Will becomes would in reported speech.\n\"What time is it?\" He asked me what time ____.|it was|was it;is it;it is|Reported questions keep statement word order: it was, not was it.\n\"Do you like pizza?\" She asked me ____ I liked pizza.|if|that;what;do|Yes/no questions are reported with if or whether.\n\"Don't touch it!\" He told me ____ it.|not to touch|don't touch;not touch;to not touching|Negative commands: told + object + not to + infinitive.\n\"Open the window,\" she said. She told me ____ the window.|to open|open;opening;that I open|Commands: told + object + to + infinitive.\n\"I have finished,\" he said. He said he ____ finished.|had|has;have;was|Present perfect becomes past perfect.\n\"I saw her yesterday.\" He said he had seen her ____.|the day before|yesterday;the day after;tomorrow|Yesterday becomes the day before in reported speech.\nHe asked me ____ I could help him.|whether|that;what;do|Whether is used for indirect yes/no questions.\n\"You should see a doctor,\" he said. He advised me ____ a doctor.|to see|seeing;see;that see|Advise + object + to + infinitive.\nHe said, \"I've never been to Rome.\" He said he ____ been to Rome.|had never|has never;never has;never had been|Present perfect backshifts to past perfect.\n\"I'm working here.\" She said she ____ there.|was working|is working;works;has worked|Present continuous becomes past continuous.\n\"Why are you late?\" The teacher asked me why I ____ late.|was|am;is;were|Reported question: statement order and backshift.\nHe ____ me that the shop was closed.|told|said;spoke;asked|Tell needs a person object; say does not.\nShe ____ that she was tired.|said|told;asked;spoke|Say is used without a person object.\n\"I'm sorry I'm late,\" she said. She apologised ____ late.|for being|to be;of being;that being|Apologise for + -ing form.");
+addGram("rel", "Relative clauses", 100, "Who, which, that, whose, where, when and why.", "The woman ____ lives next door is a doctor.|who|which;whose;whom|Who refers to people as the subject of the clause.\nThe book ____ I bought yesterday is excellent.|that|who;whose;where|That can introduce a defining clause about things.\nThat's the man ____ car was stolen.|whose|who;which;whom|Whose shows possession: the man's car.\nThis is the town ____ I was born.|where|which;when;that|Where refers to a place.\nMy sister, ____ lives in Paris, is a pilot.|who|that;which;whose|In non-defining clauses (with commas) we cannot use that.\nThe film, ____ was released last month, was a hit.|which|that;who;whose|Non-defining clause about a thing: which, never that.\nI'll never forget the day ____ we met.|when|where;which;what|When refers to a time.\nThe reason ____ he left is a mystery.|why|which;who;whose|Why follows the word reason.\nThe girl to ____ I spoke was very polite.|whom|who;which;whose|After a preposition we use whom for people.\nEverything ____ he said was true.|that|what;which;who|After everything, all, nothing we use that.\nHe told me about his trip, ____ was very interesting.|which|what;that;who|Which can refer to the whole previous clause.\nThe students ____ passed the exam were happy.|who|whose;which;whom|Who for people as the subject.\nThe house ____ roof was damaged has been repaired.|whose|which;who;that|Whose can also refer to things.\nThat's the cafe in ____ we first met.|which|that;where;whom|After a preposition we use which for things.\nDo you know the name of the person ____ left this bag?|who|whose;which;whom|Who is the subject of left.\nThere is nothing ____ I can do.|that|what;whom;whose|After nothing we use that, not what.");
+addGram("verb", "Gerund or infinitive", 50, "Which verbs take -ing and which take to + infinitive.", "I enjoy ____ to music in the evening.|listening|to listen;listen;listened|Enjoy is followed by the -ing form.\nShe decided ____ a new job.|to look for|looking for;look for;to looking for|Decide + to + infinitive.\nHe avoided ____ the question.|answering|to answer;answer;answered|Avoid + -ing.\nI'm looking forward to ____ you.|seeing|see;to see;saw|After look forward to, to is a preposition, so use -ing.\nThey agreed ____ the project next week.|to start|starting;start;to starting|Agree + to + infinitive.\nI remember ____ the door; I'm sure I locked it.|locking|to lock;lock;locked|Remember + -ing: a memory of a past action.\nRemember ____ the door before you leave.|to lock|locking;lock;locked|Remember + to + infinitive: a task you must not forget.\nYou should stop ____ so much junk food.|eating|to eat;eat;ate|Stop + -ing means to quit an action.\nHe suggested ____ to the cinema.|going|to go;go;went|Suggest + -ing.\nI can't afford ____ a new phone.|to buy|buying;buy;bought|Afford + to + infinitive.\nShe made me ____ the room.|clean|to clean;cleaning;cleaned|Make + object + bare infinitive.\nMy parents let me ____ out late on Saturdays.|stay|to stay;staying;stayed|Let + object + bare infinitive.\nI'm trying ____ my English, so I watch films every day.|to improve|improving;improve;improved|Try + to + infinitive: make an effort.\nIt's worth ____ the museum if you have time.|visiting|to visit;visit;visited|Worth is followed by the -ing form.\nShe admitted ____ the money.|taking|to take;take;took|Admit + -ing.\nI'd like ____ you something.|to show|showing;show;shown|Would like + to + infinitive.");
+addGram("modal", "Modal verbs", 240, "Deduction, obligation, permission and criticism about the past.", "He ____ be at home; his car is outside.|must|can't;mustn't;needn't|Must expresses a strong deduction: you are almost sure.\nShe ____ be 60; she looks so young!|can't|must;mustn't;needn't|Can't expresses a strong negative deduction.\nThey ____ have left already; the lights are off.|must|can;would;need|Must have + past participle: a strong deduction about the past.\nYou ____ have told me earlier! Now it's too late.|should|must;can;needn't|Should have + past participle criticises a past action.\nYou ____ wear a seat belt. It's the law.|must|needn't;mustn't;may|Must expresses strong obligation.\nYou ____ park here; it's forbidden.|mustn't|needn't;don't have to;can|Mustn't means it is prohibited.\nYou ____ bring anything; we have everything.|don't have to|mustn't;can't;shouldn't|Don't have to means it is not necessary.\nI ____ speak French when I was five.|could|can;might;should|Could expresses ability in the past.\nIt ____ rain later, so take an umbrella.|might|must;can't;should have|Might expresses a possibility.\n____ you help me with these bags, please?|Could|Must;Should;Need|Could is a polite way to make a request.\nHe ____ have missed the train; he's always on time.|can't|mustn't;shouldn't;needn't|Can't have + past participle: a negative deduction about the past.\nWe ____ have taken a taxi; the bus was perfectly fine.|needn't|mustn't;can't;might not|Needn't have + past participle: it was unnecessary, but we did it.\nYou ____ see a doctor if the pain continues.|should|might;must have;needn't|Should is used for advice.\n____ I borrow your pen?|May|Must;Would;Should|May I is a formal way to ask for permission.\nShe ____ be in the library; I saw her go in.|must|can't;shouldn't;needn't|Must: she is almost certainly there.\nI'm sorry, I ____ have shouted at you.|shouldn't|mustn't;can't;needn't|Shouldn't have + past participle expresses regret.");
+addGram("tense", "Past simple, perfect and continuous", 175, "Choose between past simple, present perfect, past perfect and the continuous forms.", "I ____ here since 2019.|have lived|lived;live;am living|Since + a date needs the present perfect.\nShe ____ to Paris last summer.|went|has gone;goes;was going|A finished time (last summer) needs the past simple.\nWhen I arrived, the film ____ already started.|had|has;was;did|Past perfect: the film started before I arrived.\nI ____ TV when the phone rang.|was watching|watched;have watched;had watched|Past continuous: an action in progress interrupted by another.\nHow long ____ you been learning English?|have|did;had;do|Present perfect continuous: how long + have you been + -ing.\nHe has worked here ____ ten years.|for|since;during;from|For + a period of time.\nShe has been living here ____ 2015.|since|for;from;during|Since + a point in time.\nI ____ my keys. Can you help me look for them?|have lost|lost;had lost;was losing|Present perfect: a past action with a result now.\nBy the time we got there, they ____ everything.|had eaten|ate;have eaten;were eating|Past perfect: the eating finished before we arrived.\nI ____ him yesterday.|saw|have seen;had seen;see|Yesterday is a finished time, so we use the past simple.\nWe ____ for two hours when the bus finally came.|had been waiting|have been waiting;were waiting;waited|Past perfect continuous: how long before a past moment.\nLook! It ____ snowing.|has started|started;had started;was starting|Present perfect: a recent action with a visible result.\nI've just ____ the report.|finished|finish;finishing;finishes|Have + just + past participle.\nBy the time she moved to Spain, she ____ in London for five years.|had lived|lived;has lived;was living|Past perfect: before another moment in the past.\nI ____ to the gym three times this week.|have been|was;had been;am going|This week is not finished, so we use the present perfect.\nWhen I was young, we ____ to the seaside every summer.|went|have gone;had gone;go|A repeated past habit in a finished period: past simple.");
+addGram("link", "Linking words", 355, "Although, despite, however, so that, whereas and more.", "____ it was raining, we went for a walk.|Although|Despite;However;Because of|Although is followed by a clause (subject + verb).\n____ the rain, we went for a walk.|Despite|Although;However;Even though|Despite is followed by a noun or an -ing form.\nI was tired. ____, I kept working.|However|Although;Despite;Because|However starts a new sentence and shows contrast.\nHe didn't go out ____ he was ill.|because|because of;despite;although|Because is followed by a clause.\nHe stayed at home ____ the weather.|because of|because;although;however|Because of is followed by a noun.\nShe works hard ____ she can buy a house.|so that|in spite of;however;although|So that introduces a purpose.\nI like tea, ____ my brother prefers coffee.|whereas|despite;unless;as|Whereas compares two different things.\n____ being tired, he finished the race.|In spite of|Although;However;Even though|In spite of + -ing form.\nHe worked hard; ____, he failed the exam.|nevertheless|because;so that;in case|Nevertheless means in spite of that.\nI'll lend you the book ____ you promise to return it.|provided that|unless;although;in spite of|Provided that means only if.\nShe didn't pass the exam. ____, she wasn't disappointed.|Even so|Because;Unless;So that|Even so adds a surprising contrast.\nShe left early ____ she could catch the last train.|so that|despite;however;although|So that + a clause expresses purpose.\nI enjoyed the trip. ____, the hotel was a bit noisy.|On the other hand|Because of;Unless;In case|On the other hand introduces a contrasting point.\n____ he is very rich, he is not happy.|Even though|Despite;However;In spite|Even though is followed by a full clause.\nWe stayed inside ____ it was freezing.|as|despite;however;whereas|As can mean because.\nFirstly, we need money. ____, we need time.|Moreover|Although;Unless;Whereas|Moreover adds another point to the first one.");
+addGram("prefer", "Would rather, had better, it's time", 125, "Preferences, advice and urgency structures.", "I'd rather ____ at home tonight.|stay|to stay;staying;stayed|Would rather + base form of the verb.\nYou'd better ____ a coat; it's cold.|take|to take;taking;took|Had better + base form of the verb.\nIt's time we ____ home.|went|go;to go;going|It's time + past simple: the action should already be happening.\nI'd rather you ____ smoke in here.|didn't|don't;wouldn't;haven't|Would rather + a different subject takes the past simple.\nI'd prefer ____ by train.|to travel|travel;travelling to;travelled|Would prefer + to + infinitive.\nI prefer walking ____ driving.|to|than;from;at|Prefer + -ing + to + -ing.\nShe'd rather ____ than eat meat.|starve|to starve;starving;starved|Would rather + base form, with than + base form.\nYou had better ____ late again.|not be|not to be;don't be;aren't|The negative of had better is had better not + base form.\nIt's high time you ____ a job.|found|find;will find;finding|It's high time + past simple.\nI'd rather you ____ me the truth yesterday.|had told|told;tell;would tell|Would rather + past perfect: a regret about the past.\nWould you rather ____ tea or coffee?|have|to have;having;had|Would you rather + base form.\nWe'd better ____ now, or we'll miss the bus.|leave|to leave;leaving;left|Had better + base form, without to.\nHe'd rather ____ a taxi than walk home.|take|to take;taking;took|Would rather + base form.\nI'd prefer you ____ the window open.|to leave|leave;leaving;left|Would prefer + object + to + infinitive.\nShe prefers ____ to the radio rather than watch TV.|to listen|listening;listen;listened|Prefer + to + infinitive before rather than + base form.\nIt's about time you ____ to bed.|went|go;going;to go|It's about time + past simple.");
+addGram("caus", "Have or get something done", 70, "Things other people do for you.", "I ____ my hair cut yesterday.|had|did;made;was|Have + object + past participle: someone else did it for me.\nWe're going to ____ the house painted next week.|have|make;do;be|Have + something + past participle.\nShe ____ her car repaired last week.|had|has;did;made|Past simple of have something done.\nI must get my passport ____.|renewed|renew;renewing;to renew|Get + object + past participle.\nHe had his phone ____ yesterday.|stolen|steal;stealing;stole|Have + object + past participle, also for bad experiences.\nWe ____ a new kitchen fitted last month.|had|made;did;were|Had + object + past participle.\nI need to ____ my eyes tested.|have|do;make;take|Have your eyes tested: an optician does it.\nShe got her teeth ____ at the dentist.|checked|check;checking;to check|Get + object + past participle.\nDid you ____ your flat cleaned?|have|make;do;let|Questions use did + have + object + past participle.\nI'm having my hair ____ tomorrow.|cut|cutting;cuts;to cut|The past participle shows someone cuts it for you.\nThey ____ the roof fixed after the storm.|had|have;made;let|The past simple had shows a finished event.\nWe had our photo ____ in the park.|taken|take;taking;took|Had + object + past participle.\nI'll have someone ____ the TV.|repair|repaired;repairing;to repair|Have + person + base form is the active version.\nWhy don't you ____ your hair dyed?|get|do;make;take|Get can replace have in informal speech.");
+addGram("comp", "Comparatives and superlatives", 260, "As...as, the more...the more, much better and by far the best.", "This exam was ____ than the last one.|easier|more easy;most easy;easy|Short adjectives add -er; easy becomes easier.\nShe is ____ student in the class.|the best|the better;best;better|The superlative of good is the best.\nHe isn't ____ tall as his brother.|as|than;more;like|Not as + adjective + as compares two equals.\nThe more you practise, ____ you become.|the better|better;the best;the good|The + comparative, the + comparative.\nThis phone is ____ more expensive than mine.|much|very;most;too|Much (not very) intensifies a comparative.\nIt's getting ____ every day.|colder and colder|more cold;coldest;the colder|Repeating the comparative shows gradual change.\nShe speaks English ____ than I do.|more fluently|more fluent;fluentlier;most fluently|Adverbs of this type use more + adverb.\nThat was by far ____ film I've ever seen.|the worst|the worse;worst;worse|By far goes with the superlative: the worst.\nThe weather is not ____ as it was yesterday.|as good|so better;good as;better|Not as + adjective + as.\nHe works ____ than anyone else in the office.|harder|more hard;hardest;the harder|Hard is both adjective and adverb; its comparative is harder.\nSpain is ____ to the Equator than Norway.|closer|closest;more close;the closer|Short adjectives add -er: close becomes closer.\nThis is ____ interesting book I have read this year.|the most|most;more;the more|The + most + adjective for the superlative of long adjectives.\nShe's twice ____ old as her brother.|as|than;so;more|Twice as + adjective + as.\nMy flat is quite ____ from yours.|different|more different;differently;difference|After quite we use the adjective; different takes from.\nThe earlier we leave, ____ we'll arrive.|the sooner|sooner;the soon;soonest|The + comparative, the + comparative.\nI feel ____ today than yesterday.|much better|very better;most good;more good|Better is the comparative of good; much strengthens it.");
+addGram("coll", "Collocations", 300, "Make, do, take, have, keep, save and other natural word partners.", "I need to ____ a decision before Friday.|make|do;have;get|We make decisions, plans, mistakes and money.\nCould you ____ me a favour?|do|make;take;give|We do a favour, homework, the dishes and our best.\nWe should ____ a break; we've been working for hours.|take|make;do;give|Take a break, a photo, a seat or a risk.\nThey ____ a lovely time in Rome.|had|made;did;took|Have a good time, a look, a meeting or a chat.\nI'll ____ my best to arrive on time.|do|make;take;have|The fixed expression is do your best.\nHe promised to ____ the dishes after dinner.|do|make;take;have|Do the dishes, the washing, the shopping.\nPlease ____ attention to what I'm saying.|pay|make;do;take|The collocation is pay attention.\nShe ____ a mistake on the form.|made|did;took;had|We make a mistake.\nI'd like to ____ a complaint about the service.|make|do;take;get|Make a complaint, an effort, a suggestion.\nLet's ____ a look at the menu.|have|make;do;give|Have a look, a shower, a rest.\nWe need to ____ a meeting to discuss the problem.|have|do;take;give|Have a meeting, a party, a conversation.\nIt doesn't ____ any difference to me.|make|do;have;give|Make a difference.\nYou should ____ advantage of this special offer.|take|make;do;get|Take advantage of something.\nThere was ____ traffic this morning, so I was late.|heavy|strong;big;thick|Traffic and rain are heavy, not strong.\nI'd like a cup of ____ coffee, please.|strong|heavy;hard;powerful|Coffee, tea and wind are strong.\nShe has a ____ chance of winning, so she's very nervous.|slim|thin;narrow;skinny|A slim chance means a very small chance.\nHe took a deep ____ before answering.|breath|air;wind;gasp|Take a deep breath.\nI promised not to tell anyone, and I always ____ a secret.|keep|hold;make;do|Keep a secret, a promise, a diary.\nWe must ____ the deadline, or the client will be angry.|meet|catch;reach;do|Meet a deadline, a target or a requirement.\nShe ____ a small business in the town centre.|runs|drives;does;makes|Run a business, a shop or a company.\nDon't ____ a lie; tell me the truth.|tell|say;make;speak|Tell a lie, a joke, a story or the truth.\nIf you take the motorway, you will ____ time.|save|win;keep;earn|Save time, money or energy.\nTry not to ____ your temper when the children shout.|lose|miss;waste;drop|Lose your temper, your way or your job.\nHe was fined for ____ the speed limit.|breaking|making;doing;taking|Break the law, a rule, the speed limit or a promise.");
+addGram("art", "Articles and quantifiers", 225, "A, an, the, no article, much, many, few, little, some and any.", "I saw ____ interesting film last night.|an|a;the;–|Use an before a vowel sound.\nShe is ____ doctor.|a|an;the;–|Use a/an with jobs.\n____ sun rises in the east.|The|A;An;–|Unique things take the.\nI love ____ music.|–|a;the;an|No article for general ideas and plural or uncountable nouns.\nHe plays ____ guitar very well.|the|a;an;–|Musical instruments take the.\nWe had dinner at ____ restaurant you recommended.|the|a;an;–|The refers to a specific one both people know.\nHe went to ____ bed at ten.|–|the;a;an|Fixed expressions: go to bed, go to school, go home.\nIt was ____ one-hour trip.|a|an;the;–|One starts with a consonant sound, so we use a.\nWhat ____ beautiful day!|a|the;an;–|Exclamations with what + a singular noun need a/an.\nWe stayed in ____ Hilton Hotel.|the|a;an;–|Hotels and restaurants with proper names often take the.\nThere isn't ____ milk left.|much|many;a few;few|Much is used with uncountable nouns in negatives.\nHow ____ people came to the party?|many|much;a little;little|Many goes with countable plural nouns.\nI have ____ friends here, so I feel a bit lonely.|few|little;a few;much|Few means almost none, with a negative feeling.\nWe have ____ time left; let's hurry.|little|few;a few;many|Little means not much, with uncountable nouns.\nCould I have ____ water, please?|some|any;many;few|Some is used in offers and requests.\nDo you have ____ questions?|any|some;much;a little|Any is used in questions.\nThere were ____ people at the concert; the hall was full.|a lot of|much;a little;any|A lot of works with countable and uncountable nouns.\nI need ____ advice.|some|a;many;few|Advice is uncountable, so we cannot say an advice.\n____ of the students passed the exam, so the teacher was pleased.|Most|Much;Little;Any|Most of + plural noun means nearly all.\nHe has ____ money; he can't even pay the rent.|hardly any|hardly no;a few;many|Hardly any means almost none.\nI have read ____ books by this author, but not all.|some|much;a little;any|Some is used in positive statements.\n____ student has to bring a passport.|Every|All;Much;Many|Every is followed by a singular noun.");
+/*@@/GRAM@@*/
+
+function buildCards(el, dict, kind){
+  Object.keys(dict).forEach(function(k){
+    var d = dict[k];
+    var card = document.createElement("div");
+    card.className = "skill";
+    card.style.setProperty("--h", d.h);
+    var h = "<h3>" + d.name + "</h3><p>" + d.blurb + "</p><span class='count'>" + d.items.length + " items</span><div class='modes'>";
+    if (d.pairs) h += "<button class='mini' data-g='" + kind + "' data-k='" + k + "' data-m='pairs'>Pairs</button>";
+    h += "<button class='mini' data-g='" + kind + "' data-k='" + k + "' data-m='quiz'>" + d.rushName + "</button></div>";
+    card.innerHTML = h;
+    el.appendChild(card);
+  });
+  el.addEventListener("click", function(e){
+    var b = e.target.closest(".mini");
+    if (!b) return;
+    if (b.dataset.m === "pairs") startSkillPairs(b.dataset.k); else startQuiz(b.dataset.g, b.dataset.k);
+  });
+}
+buildCards($("#skills"), SKILLS, "sk");
+buildCards($("#grammar"), GRAMMAR, "gr");
+
+var sect = "units";
+function renderSect(){
+  var ids = {units:"Units", skills:"Skills", gram:"Gram"};
+  Object.keys(ids).forEach(function(k){
+    $("#tab" + ids[k]).setAttribute("aria-pressed", sect === k);
+    $("#p" + ids[k]).hidden = sect !== k;
+  });
+}
+$("#tabUnits").addEventListener("click", function(){ sect = "units"; renderSect(); });
+$("#tabSkills").addEventListener("click", function(){ sect = "skills"; renderSect(); });
+$("#tabGram").addEventListener("click", function(){ sect = "gram"; renderSect(); });
+
+function startSkillPairs(k){
+  var d = SKILLS[k];
+  start([{n:k, t:d.name, label:d.name + " · Pairs", words:d.items.map(function(q){
+    return {en:q.en, es:q.es, s:q.s.replace("____", q.a), h:q.a};
+  })}]);
+}
+
+/* ----- Gap Fill / Idiom Detective: 10 questions, no timer, a Next button after each answer ----- */
+var Q = null;
+var PREPS = ["in","on","at","of","for","to","with","from","about","by"];
+
+function startQuiz(kind, key){
+  var d = (kind === "gr" ? GRAMMAR : SKILLS)[key];
+  var sk = (kind === "gr" ? "g-" : "r-") + key;
+  var seen = seenByPool[sk] || (seenByPool[sk] = {});
+  var unseen = d.items.filter(function(q){ return !seen[q.id]; });
+  if (!unseen.length){ seen = seenByPool[sk] = {}; unseen = d.items.slice(); }
+  var order = shuffle(unseen);
+  if (order.length < QN) order = order.concat(shuffle(d.items.filter(function(q){ return order.indexOf(q) < 0; })));
+  Q = {kind:kind, key:key, d:d, order:order.slice(0, QN), i:-1, right:0, done:0, streak:0, best:0, log:[], seen:seen, lock:false, cur:null, over:false};
+  $("#rTitle").textContent = d.rushName + " · " + d.name;
+  $("#rHint").textContent = d.hint + " Take your time: there is no timer.";
+  show("rush");
+  nextQ();
+}
+function updateQuiz(){
+  var n = Q.order.length;
+  $("#rTime").textContent = Math.min(Q.done + 1, n) + "/" + n;
+  $("#rScore").textContent = "✓ " + Q.right;
+  $("#rFill").style.width = (Q.done / n * 100) + "%";
+}
+function makeOptions(q, key){
+  if (q.o) return shuffle([q.a].concat(q.o));
+  var pool;
+  if (key === "pp") pool = PREPS.filter(function(p){ return p !== q.a; });
+  else pool = SKILLS[key].items.map(function(x){ return x.a; }).filter(function(a){ return a !== q.a; });
+  pool = shuffle(pool);
+  var picks = [];
+  if (key === "pv"){
+    var base = q.a.split(" ")[0];
+    var same = pool.filter(function(p){ return p.split(" ")[0] === base; });
+    if (same.length) picks.push(same[0]);
+  }
+  pool.forEach(function(p){ if (picks.length < 3 && picks.indexOf(p) < 0) picks.push(p); });
+  return shuffle(picks.concat(q.a));
+}
+function nextQ(){
+  if (!Q || Q.over) return;
+  Q.i++;
+  if (Q.i >= Q.order.length){ endQuiz(); return; }
+  var q = Q.order[Q.i];
+  Q.cur = q; Q.lock = false;
+  var p = $("#rQ");
+  p.innerHTML = "";
+  var parts = q.s.split("____");
+  p.appendChild(document.createTextNode(parts[0]));
+  var gap = document.createElement("span");
+  gap.className = "gap"; gap.id = "rGap"; gap.innerHTML = "&nbsp;";
+  p.appendChild(gap);
+  p.appendChild(document.createTextNode(parts[1] || ""));
+  var box = $("#rOpts");
+  box.innerHTML = "";
+  makeOptions(q, Q.key).forEach(function(o){
+    var b = document.createElement("button");
+    b.className = "opt"; b.textContent = o;
+    b.addEventListener("click", function(){ answer(b, o); });
+    box.appendChild(b);
+  });
+  $("#rFb").textContent = "";
+  $("#rNext").hidden = true;
+  updateQuiz();
+}
+function answer(btn, val){
+  if (Q.lock) return;
+  Q.lock = true;
+  var q = Q.cur, ok = (val === q.a);
+  Q.done++;
+  Q.seen[q.id] = true; saveSeen();
+  var gap = $("#rGap");
+  gap.textContent = q.a;
+  gap.classList.add(ok ? "good" : "bad");
+  Array.prototype.forEach.call($("#rOpts").children, function(b){
+    b.disabled = true;
+    if (b.textContent === q.a) b.classList.add("ok");
+    else if (b === btn) b.classList.add("wrong");
+    else b.classList.add("dim");
+  });
+  if (ok){ Q.right++; Q.streak++; Q.best = Math.max(Q.best, Q.streak); } else Q.streak = 0;
+  Q.log.push({q:q, ok:ok, picked:val});
+  var gloss = q.why ? esc(q.why) : (q.es ? "<b>" + esc(q.a) + "</b> = " + esc(q.es) : "");
+  $("#rFb").innerHTML = (ok ? "Correct" + (Q.streak >= 3 ? " &middot; streak " + Q.streak : "") : "Not this time") + (gloss ? "<br>" + gloss : "");
+  var nb = $("#rNext");
+  nb.textContent = (Q.i + 1 >= Q.order.length) ? "See recap" : "Next";
+  nb.hidden = false;
+  try { nb.focus({preventScroll:true}); } catch(e){}
+  updateQuiz();
+}
+function endQuiz(){
+  if (!Q || Q.over) return;
+  Q.over = true;
+  var n = Q.done, acc = n ? Q.right / n : 0;
+  var title, sub;
+  if (n >= 8 && acc >= 0.9){ title = "Very solid."; sub = "Almost everything right. Read the recap once more and move on."; }
+  else if (acc >= 0.7){ title = "Good round."; sub = "Most answers landed. The recap shows the ones to review."; }
+  else { title = "Keep going."; sub = "Read the recap carefully. Seeing each one in a sentence helps it stick."; }
+  var rows = Q.log.map(function(e){
+    var q = e.q, note = "";
+    if (q.why) note = q.why;
+    if (!e.ok) note = "You chose: " + e.picked + (note ? ". " + note : "");
+    var r = {ok:e.ok, s:q.s.replace("____", q.a), hl:q.a, note:note};
+    if (q.es){ r.t = q.a; r.sub = q.es; }
+    return r;
+  });
+  var kind = Q.kind, key = Q.key;
+  showEnd(title, sub, [[Q.right + "/" + n, "Correct"], [Q.best, "Best streak"], [Math.round(acc * 100) + "%", "Accuracy"]],
+    "Play again", function(){ startQuiz(kind, key); }, "Recap", rows);
+  if (n >= 8 && acc >= 0.7) confetti();
+}
+$("#rNext").addEventListener("click", nextQ);
+$("#rBack").addEventListener("click", function(){
+  if (Q) Q.over = true;
+  show("home");
+});
+document.addEventListener("keydown", function(e){
+  if (!Q || screens.rush.hidden || Q.lock) return;
+  var n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4){ var b = $("#rOpts").children[n - 1]; if (b) b.click(); }
+});
+
+renderHome();
+renderSect();
+</script>
+</body>
+</html>
